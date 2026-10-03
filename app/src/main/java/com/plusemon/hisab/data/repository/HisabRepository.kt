@@ -290,6 +290,10 @@ class HisabRepository(
         vendorDao.insertVendor(vendor)
     }
 
+    suspend fun archiveVendor(vendorId: Long, userId: String, isArchived: Boolean) = withContext(Dispatchers.IO) {
+        vendorDao.archiveVendor(vendorId, userId, isArchived)
+    }
+
     suspend fun addShopCreditPurchase(
         vendorId: Long,
         vendorName: String,
@@ -298,11 +302,12 @@ class HisabRepository(
         dueDate: Long?,
         note: String,
         phone: String,
-        locationNote: String
+        locationNote: String,
+        categoryTag: String
     ): Long = withContext(Dispatchers.IO) {
         var vId = vendorId
         if (vId == 0L && vendorName.isNotBlank()) {
-            val newVendor = Vendor(userId = userId, name = vendorName, phone = phone, locationNote = locationNote)
+            val newVendor = Vendor(userId = userId, name = vendorName, phone = phone, locationNote = locationNote, categoryTag = categoryTag)
             vId = vendorDao.insertVendor(newVendor)
         }
         val purchase = ShopCreditPurchase(

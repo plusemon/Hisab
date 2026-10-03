@@ -1,7 +1,10 @@
 package com.plusemon.hisab.ui.screens.debts
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,26 +19,33 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -147,11 +158,12 @@ fun DebtsScreen(
     if (showAddCreditDialog) {
         AddShopCreditDialog(
             vendors = vendors,
+            purchases = shopCreditPurchases,
             initialVendorId = selectedVendorId,
             isBangla = isBn,
             onDismiss = { showAddCreditDialog = false },
-            onSave = { vendorId, vendorName, amount, dueDate, note, phone, locationNote ->
-                viewModel.addShopCreditPurchase(vendorId, vendorName, 1L, amount, dueDate, note, phone, locationNote)
+            onSave = { vendorId, vendorName, amount, dueDate, note, phone, locationNote, tag ->
+                viewModel.addShopCreditPurchase(vendorId, vendorName, 1L, amount, dueDate, note, phone, locationNote, tag)
                 showAddCreditDialog = false
             }
         )
@@ -274,7 +286,8 @@ fun DebtsScreen(
                         hideBalances = hideBalances,
                         currencySymbol = currSymbol,
                         onVendorClick = { vendorId -> selectedVendorId = vendorId },
-                        onAddCreditClick = { showAddCreditDialog = true }
+                        onAddCreditClick = { showAddCreditDialog = true },
+                        onArchiveVendor = { vId, archived -> viewModel.archiveVendor(vId, archived) }
                     )
                 }
             } else if (selectedContactId != null && activeContact != null) {
@@ -299,7 +312,11 @@ fun DebtsScreen(
                     hideBalances = hideBalances,
                     currencySymbol = currSymbol,
                     onSettleClick = { settlingVendor = activeVendor },
-                    onAddPurchaseClick = { showAddCreditDialog = true }
+                    onAddPurchaseClick = { showAddCreditDialog = true },
+                    onArchiveVendor = { vId, archived ->
+                        viewModel.archiveVendor(vId, archived)
+                        selectedVendorId = null
+                    }
                 )
             }
         }
@@ -782,8 +799,9 @@ fun LoanDebtItemCard(
 }
 
 // -------------------------------------------------------------
-// SHOP CREDIT (দোকান বাকি) CONTENT
+// SHOP CREDIT (দোকান বাকি) CONTENT & VENDOR MANAGEMENT
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopCreditOverviewContent(
     vendors: List<Vendor>,
@@ -794,36 +812,87 @@ fun ShopCreditOverviewContent(
     hideBalances: Boolean,
     currencySymbol: String,
     onVendorClick: (Long) -> Unit,
-    onAddCreditClick: () -> Unit
+    onAddCreditClick: () -> Unit,
+    onArchiveVendor: (Long, Boolean) -> Unit
 ) {
     val isBn = isBangla
-    val vendorSummaries = remember(vendors, purchases) {
-        vendors.map { vendor ->
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+    var sortBy by remember { mutableStateOf(0) } // 0: Highest Balance, 1: Alphabetical, 2: Most Recent
+
+    val activeVendors = remember(vendors) { vendors.filter { !it.isArchived } }
+
+    val vendorSummaries = remember(activeVendors, purchases, searchQuery, selectedTag, sortBy) {
+        val summaries = activeVendors.map { vendor ->
             val vPurchases = purchases.filter { it.vendorId == vendor.id }
             val owed = vPurchases.filter { !it.isSettled }.sumOf { it.remainingAmount }
-            Triple(vendor, owed, vPurchases)
-        }.sortedByDescending { it.second }
+            val lastActive = vPurchases.maxOfOrNull { it.dateTimestamp } ?: vendor.createdAt
+            Triple(vendor, owed, lastActive)
+        }
+
+        val owedVendorsCount = summaries.count { it.second > 0 }
+        val totalVendorsCount = summaries.size
+
+        val filtered = summaries.filter { (vendor, _, _) ->
+            val matchesSearch = vendor.name.contains(searchQuery, true) || vendor.phone.contains(searchQuery, true) || vendor.categoryTag.contains(searchQuery, true)
+            val matchesTag = selectedTag == null || vendor.categoryTag.equals(selectedTag, true)
+            matchesSearch && matchesTag
+        }
+
+        val sorted = when (sortBy) {
+            0 -> filtered.sortedByDescending { it.second } // Highest Balance
+            1 -> filtered.sortedBy { it.first.name } // Alphabetical
+            2 -> filtered.sortedByDescending { it.third } // Most Recently Active
+            else -> filtered
+        }
+
+        Triple(sorted, owedVendorsCount, totalVendorsCount)
+    }
+
+    val (displaySummaries, owedVendorsCount, totalVendorsCount) = vendorSummaries
+
+    val availableTags = remember(activeVendors) {
+        activeVendors.map { it.categoryTag }.filter { it.isNotBlank() }.distinct()
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Summary Header with count ("owed to 4 of 9 vendors")
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = ExpenseRed.copy(alpha = 0.12f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isBn) "মোট দোকান বাকি (পরিশোধ করতে হবে)" else "Total Shop Credit Owed",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ExpenseRed
-                )
-                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isBn) "মোট দোকান বাকি" else "Total Shop Credit Owed",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ExpenseRed
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = ExpenseRed.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = if (isBn) "$owedVendorsCount টি দোকান / মোট $totalVendorsCount টি" else "Owed to $owedVendorsCount of $totalVendorsCount vendors",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ExpenseRed,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 CurrencyAmountText(
                     amount = totalOwed,
                     currencySymbol = currencySymbol,
@@ -836,27 +905,122 @@ fun ShopCreditOverviewContent(
             }
         }
 
+        // Search Bar & Sort Dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (isBn) "দোকান / ভেন্ডর তালিকা" else "Vendors Ledger",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(if (isBn) "দোকান খুঁজুন..." else "Search vendors...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f)
             )
-            Button(
-                onClick = onAddCreditClick,
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(if (isBn) "বাকিতে ক্রয়" else "Add Credit")
+
+            var sortExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(
+                    onClick = { sortExpanded = true },
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                        .size(50.dp)
+                ) {
+                    Icon(Icons.Default.FilterList, contentDescription = "Sort", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DropdownMenu(
+                    expanded = sortExpanded,
+                    onDismissRequest = { sortExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (isBn) "সর্বোচ্চ বাকি (Default)" else "Highest Balance") },
+                        onClick = { sortBy = 0; sortExpanded = false }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (isBn) "নামানুসারে (A-Z)" else "Alphabetical") },
+                        onClick = { sortBy = 1; sortExpanded = false }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (isBn) "সাম্প্রতিক সক্রিয়" else "Most Recently Active") },
+                        onClick = { sortBy = 2; sortExpanded = false }
+                    )
+                }
             }
         }
 
-        if (vendorSummaries.isEmpty()) {
+        // Optional Tag Filters Horizontally
+        if (availableTags.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedTag == null,
+                    onClick = { selectedTag = null },
+                    label = { Text(Localization.getString(Localization.Key.ALL, isBn)) }
+                )
+                availableTags.forEach { tag ->
+                    FilterChip(
+                        selected = selectedTag.equals(tag, true),
+                        onClick = { selectedTag = if (selectedTag.equals(tag, true)) null else tag },
+                        label = { Text(tag) }
+                    )
+                }
+            }
+        }
+
+        // Vendors List or Empty State (Rule 9)
+        if (activeVendors.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(ExpenseRed.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Store, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(36.dp))
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = if (isBn) "কোনো দোকান বা ভেন্ডর বাকি নেই" else "No Shop Credit Records Yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isBn) "মুদি দোকান বা অন্য কোনো দোকান থেকে বাকিতে মালপত্র কিনলে এখানে হিসাব রাখুন। টাকা পরিশোধের পর হিসাব স্বয়ংক্রিয়ভাবে আপডেট হবে।" else "Track purchases taken on credit from grocery shops, pharmacies, or vendors and settle them easily.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(
+                        onClick = onAddCreditClick,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isBn) "দোকান / বাকি যোগ করুন" else "Add Vendor / Credit Purchase")
+                    }
+                }
+            }
+        } else if (displaySummaries.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -864,7 +1028,7 @@ fun ShopCreditOverviewContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isBn) "কোনো দোকান বাকির হিসাব নেই" else "No shop credit records",
+                    text = if (isBn) "কোনো দোকান পাওয়া যায়নি" else "No matching vendors found",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -872,9 +1036,9 @@ fun ShopCreditOverviewContent(
         } else {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
-                items(vendorSummaries, key = { it.first.id }) { (vendor, owed, vPurchases) ->
+                items(displaySummaries, key = { it.first.id }) { (vendor, owed, _) ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -907,20 +1071,36 @@ fun ShopCreditOverviewContent(
                             Spacer(modifier = Modifier.width(14.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = vendor.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = vendor.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (vendor.categoryTag.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                        ) {
+                                            Text(
+                                                text = vendor.categoryTag,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 if (vendor.phone.isNotBlank()) {
                                     Text(
                                         text = vendor.phone,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                } else {
+                                } else if (vendor.locationNote.isNotBlank()) {
                                     Text(
-                                        text = "${vPurchases.size} ${if (isBn) "টি ক্রয়" else "purchases"}",
+                                        text = vendor.locationNote,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -937,12 +1117,25 @@ fun ShopCreditOverviewContent(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = ExpenseRed
                                 )
-                                Text(
-                                    text = if (isBn) "বাকি আছে" else "Owed",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ExpenseRed,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                if (owed == 0.0) {
+                                    TextButton(
+                                        onClick = { onArchiveVendor(vendor.id, true) },
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isBn) "আর্কাইভ" else "Archive",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = if (isBn) "বাকি আছে" else "Owed",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = ExpenseRed,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -962,8 +1155,10 @@ fun VendorLedgerContent(
     hideBalances: Boolean,
     currencySymbol: String,
     onSettleClick: () -> Unit,
-    onAddPurchaseClick: () -> Unit
+    onAddPurchaseClick: () -> Unit,
+    onArchiveVendor: (Long, Boolean) -> Unit
 ) {
+    val context = LocalContext.current
     val isBn = isBangla
     val totalOwed = purchases.filter { !it.isSettled }.sumOf { it.remainingAmount }
 
@@ -1001,17 +1196,59 @@ fun VendorLedgerContent(
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = vendor.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (vendor.phone.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = vendor.phone,
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = vendor.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (vendor.categoryTag.isNotBlank()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = vendor.categoryTag,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (vendor.phone.isNotBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${vendor.phone}"))
+                                        context.startActivity(intent)
+                                    }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = vendor.phone,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        if (vendor.locationNote.isNotBlank()) {
+                            Text(
+                                text = vendor.locationNote,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+
+                    if (totalOwed == 0.0) {
+                        IconButton(onClick = { onArchiveVendor(vendor.id, true) }) {
+                            Icon(Icons.Default.Archive, contentDescription = "Archive Vendor", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -1041,7 +1278,7 @@ fun VendorLedgerContent(
                         ) {
                             Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isBn) "বাকি পরিশোধ" else "Settle / Pay")
+                            Text(if (isBn) "বাকি পরিশোধ" else "Pay Full")
                         }
                     }
                 }
@@ -1049,14 +1286,14 @@ fun VendorLedgerContent(
         }
 
         Text(
-            text = if (isBn) "বাকিতে ক্রয়ের ইতিহাস ও পেমেন্ট" else "Purchase & Payment History",
+            text = if (isBn) "বাকিতে ক্রয়ের ইতিহাস ও পেমেন্ট" else "Purchase & Payment Timeline",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().weight(1f)
         ) {
             item {
                 Text(
@@ -1174,6 +1411,370 @@ fun VendorLedgerContent(
 // -------------------------------------------------------------
 // DIALOGS
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddShopCreditDialog(
+    vendors: List<Vendor>,
+    purchases: List<ShopCreditPurchase>,
+    initialVendorId: Long?,
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (vendorId: Long, vendorName: String, amount: Double, dueDate: Long?, note: String, phone: String, locationNote: String, categoryTag: String) -> Unit
+) {
+    val isBn = isBangla
+    val activeVendors = remember(vendors) { vendors.filter { !it.isArchived } }
+
+    val recentVendors = remember(activeVendors, purchases) {
+        activeVendors.sortedByDescending { v ->
+            purchases.filter { it.vendorId == v.id }.maxOfOrNull { it.dateTimestamp } ?: v.createdAt
+        }.take(5)
+    }
+
+    var selectedVendor by remember { mutableStateOf(activeVendors.find { it.id == initialVendorId }) }
+    var newName by remember { mutableStateOf("") }
+    var newPhone by remember { mutableStateOf("") }
+    var locationNote by remember { mutableStateOf("") }
+    var categoryTag by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+
+    var isAddingNewVendor by remember { mutableStateOf(activeVendors.isEmpty() || initialVendorId == null) }
+
+    val duplicateSuggestion = remember(newName, activeVendors) {
+        val trimmed = newName.trim()
+        if (trimmed.length >= 2) {
+            activeVendors.firstOrNull { v ->
+                !v.name.equals(trimmed, true) && (v.name.contains(trimmed, true) || trimmed.contains(v.name, true) ||
+                        (v.name.take(3).equals(trimmed.take(3), true)))
+            }
+        } else null
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = if (isBn) "বাকিতে ক্রয় (Shop Credit Purchase)" else "Add Credit Purchase",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (recentVendors.isNotEmpty() && !isAddingNewVendor) {
+                    Text(
+                        text = if (isBn) "সম্প্রতি ব্যবহৃত দোকান:" else "Frequent Shops:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        recentVendors.forEach { vendor ->
+                            FilterChip(
+                                selected = selectedVendor?.id == vendor.id,
+                                onClick = { selectedVendor = vendor },
+                                label = { Text(vendor.name) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (!isAddingNewVendor) {
+                    var vendorExpanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = vendorExpanded,
+                        onExpandedChange = { vendorExpanded = !vendorExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedVendor?.name ?: (if (isBn) "অন্য দোকান বেছে নিন..." else "Search or select vendor..."),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(if (isBn) "দোকান / ভেন্ডর" else "Vendor / Shop") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vendorExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = vendorExpanded,
+                            onDismissRequest = { vendorExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(if (isBn) "+ নতুন দোকান যোগ করুন" else "+ Add New Vendor") },
+                                onClick = {
+                                    isAddingNewVendor = true
+                                    selectedVendor = null
+                                    vendorExpanded = false
+                                }
+                            )
+                            activeVendors.forEach { vendor ->
+                                DropdownMenuItem(
+                                    text = { Text(vendor.name) },
+                                    onClick = {
+                                        selectedVendor = vendor
+                                        vendorExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text(if (isBn) "দোকানের নাম" else "Shop / Vendor Name") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (duplicateSuggestion != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedVendor = duplicateSuggestion
+                                    isAddingNewVendor = false
+                                    newName = ""
+                                },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (isBn) "আপনি কি '${duplicateSuggestion.name}' বুঝাতে চেয়েছেন? ট্যাপ করে সিলেক্ট করুন।" else "Did you mean '${duplicateSuggestion.name}'? Tap to use.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newPhone,
+                        onValueChange = { newPhone = it },
+                        label = { Text(if (isBn) "ফোন নম্বর (ঐচ্ছিক)" else "Phone (Optional)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = categoryTag,
+                        onValueChange = { categoryTag = it },
+                        label = { Text(if (isBn) "ক্যাটেগরি ট্যাগ (যেমন: মুদি, ফার্মেসী)" else "Category Tag (e.g. Grocery, Pharmacy)") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (activeVendors.isNotEmpty()) {
+                        TextButton(onClick = { isAddingNewVendor = false }) {
+                            Text(if (isBn) "বিদ্যমান তালিকা থেকে বেছে নিন" else "Choose from existing vendors")
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text(Localization.getString(Localization.Key.AMOUNT, isBn)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(if (isBn) "আইটেম / বিবরণ (যেমন: চাল, ডাল)" else "Item / Description (e.g. rice, oil)") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(Localization.getString(Localization.Key.CANCEL, isBn))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val amt = amountText.toDoubleOrNull() ?: 0.0
+                            if (amt > 0) {
+                                val vId = selectedVendor?.id ?: 0L
+                                val vName = selectedVendor?.name ?: newName.trim()
+                                val vPhone = selectedVendor?.phone ?: newPhone.trim()
+                                val vLoc = selectedVendor?.locationNote ?: locationNote.trim()
+                                val vTag = selectedVendor?.categoryTag ?: categoryTag.trim()
+                                if (vName.isNotBlank()) {
+                                    onSave(vId, vName, amt, null, note.trim(), vPhone, vLoc, vTag)
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(Localization.getString(Localization.Key.SAVE, isBn))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecordPaymentDialog(
+    debt: LoanDebt,
+    accounts: List<com.plusemon.hisab.ui.viewmodel.AccountWithBalance>,
+    isBangla: Boolean,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onConfirm: (accountId: Long, paymentAmount: Double, note: String) -> Unit
+) {
+    val isBn = isBangla
+    var amountText by remember { mutableStateOf(debt.remainingAmount.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }) }
+    var note by remember { mutableStateOf("") }
+    var selectedAccount by remember { mutableStateOf(accounts.firstOrNull()?.account) }
+    var accountExpanded by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "${Localization.getString(Localization.Key.RECORD_PAYMENT, isBn)} - ${debt.personName}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                ExposedDropdownMenuBox(
+                    expanded = accountExpanded,
+                    onExpandedChange = { accountExpanded = !accountExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedAccount?.name ?: (if (isBn) "অ্যাকাউন্ট বেছে নিন" else "Select Account"),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(Localization.getString(Localization.Key.ACCOUNT, isBn)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = accountExpanded,
+                        onDismissRequest = { accountExpanded = false }
+                    ) {
+                        accounts.forEach { acc ->
+                            DropdownMenuItem(
+                                text = { Text(acc.account.name) },
+                                onClick = {
+                                    selectedAccount = acc.account
+                                    accountExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text(Localization.getString(Localization.Key.AMOUNT, isBn)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(Localization.getString(Localization.Key.NOTE, isBn)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(Localization.getString(Localization.Key.CANCEL, isBn))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val amt = amountText.toDoubleOrNull() ?: 0.0
+                            val accId = selectedAccount?.id ?: 1L
+                            if (amt > 0) {
+                                onConfirm(accId, amt, note.trim())
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(Localization.getString(Localization.Key.SAVE, isBn))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddLoanEntryDialog(
@@ -1405,296 +2006,6 @@ fun AddLoanEntryDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecordPaymentDialog(
-    debt: LoanDebt,
-    accounts: List<com.plusemon.hisab.ui.viewmodel.AccountWithBalance>,
-    isBangla: Boolean,
-    currencySymbol: String,
-    onDismiss: () -> Unit,
-    onConfirm: (accountId: Long, paymentAmount: Double, note: String) -> Unit
-) {
-    val isBn = isBangla
-    var amountText by remember { mutableStateOf(debt.remainingAmount.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }) }
-    var note by remember { mutableStateOf("") }
-    var selectedAccount by remember { mutableStateOf(accounts.firstOrNull()?.account) }
-    var accountExpanded by remember { mutableStateOf(false) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = "${Localization.getString(Localization.Key.RECORD_PAYMENT, isBn)} - ${debt.personName}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = accountExpanded,
-                    onExpandedChange = { accountExpanded = !accountExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedAccount?.name ?: (if (isBn) "অ্যাকাউন্ট বেছে নিন" else "Select Account"),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(Localization.getString(Localization.Key.ACCOUNT, isBn)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = accountExpanded,
-                        onDismissRequest = { accountExpanded = false }
-                    ) {
-                        accounts.forEach { acc ->
-                            DropdownMenuItem(
-                                text = { Text(acc.account.name) },
-                                onClick = {
-                                    selectedAccount = acc.account
-                                    accountExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text(Localization.getString(Localization.Key.AMOUNT, isBn)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text(Localization.getString(Localization.Key.NOTE, isBn)) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBn))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val amt = amountText.toDoubleOrNull() ?: 0.0
-                            val accId = selectedAccount?.id ?: 1L
-                            if (amt > 0) {
-                                onConfirm(accId, amt, note.trim())
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBn))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddShopCreditDialog(
-    vendors: List<Vendor>,
-    initialVendorId: Long?,
-    isBangla: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (vendorId: Long, vendorName: String, amount: Double, dueDate: Long?, note: String, phone: String, locationNote: String) -> Unit
-) {
-    val isBn = isBangla
-    var selectedVendor by remember { mutableStateOf(vendors.find { it.id == initialVendorId }) }
-    var newName by remember { mutableStateOf("") }
-    var newPhone by remember { mutableStateOf("") }
-    var locationNote by remember { mutableStateOf("") }
-    var amountText by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-
-    var isAddingNewVendor by remember { mutableStateOf(vendors.isEmpty() || initialVendorId == null) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = if (isBn) "বাকিতে ক্রয় (Shop Credit Purchase)" else "Add Credit Purchase",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                if (!isAddingNewVendor && vendors.isNotEmpty()) {
-                    var vendorExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = vendorExpanded,
-                        onExpandedChange = { vendorExpanded = !vendorExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedVendor?.name ?: (if (isBn) "দোকান বেছে নিন" else "Select Vendor"),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(if (isBn) "দোকান / ভেন্ডর" else "Vendor / Shop") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vendorExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = vendorExpanded,
-                            onDismissRequest = { vendorExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(if (isBn) "+ নতুন দোকান যোগ করুন" else "+ Add New Vendor") },
-                                onClick = {
-                                    isAddingNewVendor = true
-                                    selectedVendor = null
-                                    vendorExpanded = false
-                                }
-                            )
-                            vendors.forEach { vendor ->
-                                DropdownMenuItem(
-                                    text = { Text(vendor.name) },
-                                    onClick = {
-                                        selectedVendor = vendor
-                                        vendorExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text(if (isBn) "দোকানের নাম" else "Shop / Vendor Name") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newPhone,
-                        onValueChange = { newPhone = it },
-                        label = { Text(if (isBn) "ফোন নম্বর (ঐচ্ছিক)" else "Phone (Optional)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = locationNote,
-                        onValueChange = { locationNote = it },
-                        label = { Text(if (isBn) "ঠিকানা / লোকেশন নোট" else "Location Note") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (vendors.isNotEmpty()) {
-                        TextButton(onClick = { isAddingNewVendor = false }) {
-                            Text(if (isBn) "তালিকা থেকে দোকান বেছে নিন" else "Select from existing vendors")
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text(Localization.getString(Localization.Key.AMOUNT, isBn)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text(if (isBn) "আইটেম / বিবরণ (যেমন: মুদি বাজার)" else "Item / Description (e.g. groceries)") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBn))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val amt = amountText.toDoubleOrNull() ?: 0.0
-                            if (amt > 0) {
-                                val vId = selectedVendor?.id ?: 0L
-                                val vName = selectedVendor?.name ?: newName.trim()
-                                val vPhone = selectedVendor?.phone ?: newPhone.trim()
-                                val vLoc = selectedVendor?.locationNote ?: locationNote.trim()
-                                if (vName.isNotBlank()) {
-                                    onSave(vId, vName, amt, null, note.trim(), vPhone, vLoc)
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBn))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun SettleShopCreditDialog(
     vendor: Vendor,
     defaultAmount: Double,
@@ -1724,7 +2035,7 @@ fun SettleShopCreditDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "${if (isBn) "বাকি পরিশোধ" else "Settle Shop Credit"} - ${vendor.name}",
+                    text = "${if (isBn) "বাকি পরিশোধ (Settle)" else "Settle Shop Credit"} - ${vendor.name}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1736,7 +2047,7 @@ fun SettleShopCreditDialog(
                     onExpandedChange = { accountExpanded = !accountExpanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedAccount?.name ?: (if (isBn) "পেমেন্ট অ্যাকাউন্ট" else "Payment Account"),
+                        value = selectedAccount?.name ?: (if (isBn) "অ্যাকাউন্ট বেছে নিন" else "Select Account"),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(Localization.getString(Localization.Key.ACCOUNT, isBn)) },

@@ -889,11 +889,19 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     // SHOP CREDIT (দোকান বাকি) ACTIONS
     // -------------------------------------------------------------
 
-    fun addVendor(name: String, phone: String, locationNote: String) {
+    fun addVendor(name: String, phone: String, locationNote: String, categoryTag: String = "") {
         val user = currentUser.value ?: return
         viewModelScope.launch {
-            hisabRepository.addVendor(Vendor(userId = user.id, name = name, phone = phone, locationNote = locationNote))
+            hisabRepository.addVendor(Vendor(userId = user.id, name = name, phone = phone, locationNote = locationNote, categoryTag = categoryTag))
             _snackbarMessage.emit("ভেন্ডর/দোকান যুক্ত করা হয়েছে")
+        }
+    }
+
+    fun archiveVendor(vendorId: Long, isArchived: Boolean) {
+        val user = currentUser.value ?: return
+        viewModelScope.launch {
+            hisabRepository.archiveVendor(vendorId, user.id, isArchived)
+            _snackbarMessage.emit(if (isArchived) "ভেন্ডর আর্কাইভ করা হয়েছে" else "ভেন্ডর সক্রিয় করা হয়েছে")
         }
     }
 
@@ -905,11 +913,12 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         dueDate: Long?,
         note: String,
         phone: String,
-        locationNote: String
+        locationNote: String,
+        categoryTag: String = ""
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
-            hisabRepository.addShopCreditPurchase(vendorId, vendorName, user.id, amount, dueDate, note, phone, locationNote)
+            hisabRepository.addShopCreditPurchase(vendorId, vendorName, user.id, amount, dueDate, note, phone, locationNote, categoryTag)
             _snackbarMessage.emit("বাকিতে ক্রয়ের হিসাব সংরক্ষণ করা হয়েছে")
         }
     }

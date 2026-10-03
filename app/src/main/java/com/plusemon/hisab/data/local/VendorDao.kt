@@ -22,6 +22,9 @@ interface VendorDao {
     @Update
     suspend fun updateVendor(vendor: Vendor)
 
+    @Query("UPDATE vendors SET isArchived = :isArchived WHERE id = :vendorId AND userId = :userId")
+    suspend fun archiveVendor(vendorId: Long, userId: String, isArchived: Boolean)
+
     @Query("DELETE FROM vendors WHERE id = :id AND userId = :userId")
     suspend fun deleteVendor(id: Long, userId: String)
 

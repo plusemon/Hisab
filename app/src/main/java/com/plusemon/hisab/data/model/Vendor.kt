@@ -23,5 +23,7 @@ data class Vendor(
     val name: String,
     val phone: String = "",
     val locationNote: String = "",
+    val categoryTag: String = "", // e.g. Grocery, Pharmacy, Hardware
+    val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
