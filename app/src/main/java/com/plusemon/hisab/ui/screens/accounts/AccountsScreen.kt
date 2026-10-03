@@ -1,0 +1,516 @@
+package com.plusemon.hisab.ui.screens.accounts
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.plusemon.hisab.data.model.AccountType
+import com.plusemon.hisab.data.model.UserAccount
+import com.plusemon.hisab.domain.util.Formatters
+import com.plusemon.hisab.domain.util.Localization
+import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.getIconByName
+import com.plusemon.hisab.ui.components.parseColorHex
+import com.plusemon.hisab.ui.theme.ExpenseRed
+import com.plusemon.hisab.ui.viewmodel.AccountWithBalance
+import com.plusemon.hisab.ui.viewmodel.HisabViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccountsScreen(
+    viewModel: HisabViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val settings by viewModel.settings.collectAsState()
+    val isBn = settings.language == "bn"
+    val useBnDigits = settings.numeralSystem == "bn"
+    val hideBalances = settings.hideBalances
+    val currSymbol = settings.currencySymbol
+
+    val accountsWithBalances by viewModel.accountsWithBalances.collectAsState()
+    val totalBalance by viewModel.totalBalance.collectAsState()
+
+    var editingAccount by remember { mutableStateOf<UserAccount?>(null) }
+    var isAddingAccount by remember { mutableStateOf(false) }
+
+    if (isAddingAccount || editingAccount != null) {
+        AddEditAccountDialog(
+            account = editingAccount,
+            isBangla = isBn,
+            onDismiss = {
+                isAddingAccount = false
+                editingAccount = null
+            },
+            onSave = { name, type, currency, startingBalance, colorHex, iconName ->
+                if (editingAccount == null) {
+                    viewModel.addAccount(name, type, currency, startingBalance, colorHex, iconName)
+                } else {
+                    viewModel.updateAccount(
+                        id = editingAccount!!.id,
+                        name = name,
+                        type = type,
+                        currencyCode = currency,
+                        startingBalance = startingBalance,
+                        colorHex = colorHex,
+                        iconName = iconName
+                    )
+                }
+                isAddingAccount = false
+                editingAccount = null
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = Localization.getString(Localization.Key.MY_ACCOUNTS, isBn),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { isAddingAccount = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.testTag("add_account_fab")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Account")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Net Worth Summary Banner
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = Localization.getString(Localization.Key.NET_WORTH, isBn),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    CurrencyAmountText(
+                        amount = totalBalance,
+                        currencySymbol = currSymbol,
+                        useBanglaDigits = useBnDigits,
+                        hideBalances = hideBalances,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Accounts List
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(accountsWithBalances, key = { it.account.id }) { item ->
+                    AccountDetailedItem(
+                        item = item,
+                        isBangla = isBn,
+                        useBnDigits = useBnDigits,
+                        hideBalances = hideBalances,
+                        currencySymbol = currSymbol,
+                        onEdit = { editingAccount = item.account },
+                        onArchive = { viewModel.archiveAccount(item.account.id, true) },
+                        onDelete = { viewModel.deleteAccount(item.account.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AccountDetailedItem(
+    item: AccountWithBalance,
+    isBangla: Boolean,
+    useBnDigits: Boolean,
+    hideBalances: Boolean,
+    currencySymbol: String,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val acc = item.account
+    val accColor = parseColorHex(acc.colorHex)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("account_item_${acc.id}"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(accColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = getIconByName(acc.iconName),
+                    contentDescription = null,
+                    tint = accColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = acc.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = if (isBangla) acc.type.labelBn else acc.type.labelEn,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                CurrencyAmountText(
+                    amount = item.balance,
+                    currencySymbol = currencySymbol,
+                    useBanglaDigits = useBnDigits,
+                    hideBalances = hideBalances,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (item.balance < 0) ExpenseRed else MaterialTheme.colorScheme.onSurface
+                )
+
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onArchive,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Archive,
+                            contentDescription = "Archive",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = ExpenseRed.copy(alpha = 0.8f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditAccountDialog(
+    account: UserAccount?,
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (name: String, type: AccountType, currency: String, startingBalance: Double, colorHex: String, iconName: String) -> Unit
+) {
+    var name by remember { mutableStateOf(account?.name ?: "") }
+    var selectedType by remember { mutableStateOf(account?.type ?: AccountType.CASH) }
+    var startingBalanceText by remember { mutableStateOf(account?.startingBalance?.toString() ?: "0.0") }
+    var selectedColorHex by remember { mutableStateOf(account?.colorHex ?: "#0F766E") }
+    var selectedIconName by remember { mutableStateOf(account?.iconName ?: "account_balance_wallet") }
+
+    val colors = listOf("#0F766E", "#E11475", "#F97316", "#2563EB", "#7C3AED", "#10B981", "#D97706", "#64748B")
+    val icons = listOf("account_balance_wallet", "payments", "account_balance", "credit_card", "store", "savings")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (account == null) Localization.getString(Localization.Key.ADD_ACCOUNT, isBangla)
+                        else if (isBangla) "অ্যাকাউন্ট সম্পাদনা" else "Edit Account",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(Localization.getString(Localization.Key.NAME, isBangla)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("account_name_input")
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Account Type Selector
+                Text(
+                    text = if (isBangla) "অ্যাকাউন্টের ধরন" else "Account Type",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    AccountType.values().take(4).forEach { type ->
+                        val isSelected = selectedType == type
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedType = type }
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (isBangla) type.labelBn else type.labelEn,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = startingBalanceText,
+                    onValueChange = { startingBalanceText = it },
+                    label = { Text(if (isBangla) "প্রারম্ভিক ব্যালেন্স" else "Starting Balance") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Color Palette
+                Text(
+                    text = if (isBangla) "রঙ নির্ধারণ করুন" else "Color",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    colors.forEach { hex ->
+                        val color = parseColorHex(hex)
+                        val isSelected = selectedColorHex == hex
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .clickable { selectedColorHex = hex }
+                                .border(
+                                    width = if (isSelected) 3.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Icon Selector
+                Text(
+                    text = if (isBangla) "আইকন" else "Icon",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    icons.forEach { iconName ->
+                        val isSelected = selectedIconName == iconName
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { selectedIconName = iconName },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getIconByName(iconName),
+                                contentDescription = null,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                val startBal = startingBalanceText.toDoubleOrNull() ?: 0.0
+                                onSave(name.trim(), selectedType, "BDT", startBal, selectedColorHex, selectedIconName)
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.testTag("save_account_btn")
+                    ) {
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                    }
+                }
+            }
+        }
+    }
+}

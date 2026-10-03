@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="0"
+        android:translateY="0">
+        <!-- Main Wallet Shape -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,34 C26.69,34 24,36.69 24,40 L24,68 C24,71.31 26.69,74 30,74 L78,74 C81.31,74 84,71.31 84,68 L84,40 C84,36.69 81.31,34 78,34 L30,34 Z" />
+        
+        <!-- Wallet Top Flap / Accent -->
+        <path
+            android:fillColor="#E0F2FE"
+            android:pathData="M28,34 L80,34 C82.2,34 84,35.8 84,38 L84,44 L24,44 L24,38 C24,35.8 25.8,34 28,34 Z" />
+            
+        <!-- Wallet Inner Card Slot & Details -->
+        <path
+            android:fillColor="#0D9488"
+            android:pathData="M30,48 L58,48 C59.1,48 60,48.9 60,50 C60,51.1 59.1,52 58,52 L30,52 C28.9,52 28,51.1 28,50 C28,48.9 28.9,48 30,48 Z" />
+            
+        <path
+            android:fillColor="#14B8A6"
+            android:pathData="M30,56 L50,56 C51.1,56 52,56.9 52,58 C52,59.1 51.1,60 50,60 L30,60 C28.9,60 28,59.1 28,58 C28,56.9 28.9,56 30,56 Z" />
+
+        <!-- Wallet Clasp / Golden Badge -->
+        <path
+            android:fillColor="#F59E0B"
+            android:pathData="M68,48 L84,48 C85.1,48 86,48.9 86,50 L86,62 C86,63.1 85.1,64 84,64 L68,64 C64.69,64 62,61.31 62,58 L62,54 C62,50.69 64.69,48 68,48 Z" />
+            
+        <!-- Clasp Button -->
+        <path
+            android:fillColor="#FEF3C7"
+            android:pathData="M73,56 A3,3 0 1,1 72.9,56 Z" />
+            
+        <!-- Floating Taka / Sparkle Symbol -->
+        <path
+            android:fillColor="#FBBF24"
+            android:pathData="M48,26 L52,22 L56,26 L52,30 Z" />
+    </group>
+</vector>
