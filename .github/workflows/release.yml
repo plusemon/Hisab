@@ -23,6 +23,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Decode debug keystore
+        run: |
+          base64 --decode debug.keystore.base64 > debug.keystore
+
       - name: Write google-services.json
         run: |
           mkdir -p app
