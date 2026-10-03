@@ -26,7 +26,14 @@ jobs:
       - name: Write google-services.json
         run: |
           mkdir -p app
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > app/google-services.json
+          SECRET_VAL="${{ secrets.GOOGLE_SERVICES_JSON }}"
+          if echo -n "$SECRET_VAL" | base64 --decode > app/google-services.json 2>/dev/null; then
+            if ! grep -q "{" app/google-services.json; then
+              echo -n "$SECRET_VAL" > app/google-services.json
+            fi
+          else
+            echo -n "$SECRET_VAL" > app/google-services.json
+          fi
 
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
