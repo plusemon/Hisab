@@ -65,7 +65,7 @@ class UpdateRepository {
                 )
             }
         } catch (e: Exception) {
-            Log.e("UpdateRepository", "Silent failure checking update", e)
+            Log.w("UpdateRepository", "Silent check for update skipped or unavailable: ${e.message}")
             null
         }
     }

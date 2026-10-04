@@ -104,7 +104,7 @@ class AuthRepository(
             saveSession(user)
             AuthResult.Success(user)
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Failed to process Google sign in: ${e.message}", e)
+            Log.w("AuthRepository", "Failed to process Google sign in: ${e.message}", e)
             AuthResult.Error(e.localizedMessage ?: "Failed to sign in with Google")
         }
     }
@@ -124,7 +124,7 @@ class AuthRepository(
                 firestore.collection("users").document(uid).set(userData, SetOptions.merge())
             }
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Firestore sync skipped or error: ${e.message}")
+            Log.w("AuthRepository", "Firestore sync skipped or error: ${e.message}")
         }
     }
 

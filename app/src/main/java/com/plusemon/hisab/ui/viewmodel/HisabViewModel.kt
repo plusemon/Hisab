@@ -489,18 +489,40 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val apiException = findApiException(e)
         val statusCode = apiException?.statusCode ?: extractStatusCodeFromException(e)
 
-        android.util.Log.e(
-            "GoogleSignIn",
-            "Google Sign-In failed! Status code: $statusCode, Message: ${apiException?.message ?: e.message}",
-            e
-        )
+        val isNoCredential = e is androidx.credentials.exceptions.NoCredentialException ||
+                e.message?.contains("No credentials available", ignoreCase = true) == true ||
+                e.cause?.message?.contains("No credentials available", ignoreCase = true) == true
 
+        val isCancellation = e is androidx.credentials.exceptions.GetCredentialCancellationException ||
+                statusCode == 16 || statusCode == 12501 ||
+                e.message?.contains("cancel", ignoreCase = true) == true
+
+        if (isCancellation || isNoCredential) {
+            android.util.Log.i(
+                "GoogleSignIn",
+                if (isCancellation) "Google Sign-In was cancelled by the user."
+                else "No Google account found on device. Guiding user to email login or account settings."
+            )
+        } else {
+            android.util.Log.w(
+                "GoogleSignIn",
+                "Google Sign-In failed! Status code: $statusCode, Message: ${apiException?.message ?: e.message}"
+            )
+        }
+
+        val isBn = _settings.value.language == "bn"
         val errorMessage = when {
             // User cancelled
-            e is androidx.credentials.exceptions.GetCredentialCancellationException ||
-                    statusCode == 16 || statusCode == 12501 ||
-                    e.message?.contains("cancel", ignoreCase = true) == true -> {
-                "Google Sign-In was cancelled by the user."
+            isCancellation -> {
+                if (isBn) "গুগল সাইন-ইন বাতিল করা হয়েছে।" else "Google Sign-In was cancelled by the user."
+            }
+            // No credentials on device (e.g. fresh emulator or device without Google accounts)
+            isNoCredential -> {
+                if (isBn) {
+                    "এই ডিভাইসে কোনো গুগল অ্যাকাউন্ট যোগ করা নেই। অনুগ্রহ করে নিচে ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ/নিবন্ধন করুন অথবা ডিভাইসের সেটিংসে গুগল অ্যাকাউন্ট যোগ করুন।"
+                } else {
+                    "No Google account found on this device. Please sign in or create an account with Email & Password below, or add a Google account in device Settings."
+                }
             }
             // DEVELOPER_ERROR / Configuration issue (Status code 10 or SHA-1 / package name mismatch)
             statusCode == 10 ||
@@ -508,22 +530,56 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     e.message?.contains("DEVELOPER_ERROR", ignoreCase = true) == true ||
                     e.message?.contains("10:", ignoreCase = true) == true ||
                     e.cause?.message?.contains("DEVELOPER_ERROR", ignoreCase = true) == true -> {
-                "Configuration issue (DEVELOPER_ERROR - Status Code 10). Please contact support to verify SHA-1 fingerprint registration and client ID configuration."
+                if (isBn) {
+                    "কনফিগারেশন সমস্যা (DEVELOPER_ERROR - Status Code 10)। গুগল ক্লায়েন্ট আইডি বা ফিঙ্গারপ্রিন্ট যাচাই করুন।"
+                } else {
+                    "Configuration issue (DEVELOPER_ERROR - Status Code 10). Please contact support to verify SHA-1 fingerprint registration and client ID configuration."
+                }
             }
             // Network error (Status code 7)
             statusCode == 7 ||
                     e.message?.contains("NETWORK_ERROR", ignoreCase = true) == true ||
                     e.message?.contains("network", ignoreCase = true) == true ||
                     e is java.net.UnknownHostException || e is java.io.IOException -> {
-                "Network error during Google Sign-In. Please check your internet connection and try again."
+                if (isBn) {
+                    "ইন্টারনেট সংযোগে সমস্যা হয়েছে। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করে পুনরায় চেষ্টা করুন।"
+                } else {
+                    "Network error during Google Sign-In. Please check your internet connection and try again."
+                }
             }
             else -> {
                 val codeString = if (statusCode != null) " (Status Code $statusCode)" else ""
-                "Google Sign-In failed$codeString: ${apiException?.message ?: e.localizedMessage ?: "Unknown error"}"
+                if (isBn) {
+                    "গুগল সাইন-ইন সম্পন্ন করা যায়নি$codeString: ${apiException?.message ?: e.localizedMessage ?: "অজানা ত্রুটি"}"
+                } else {
+                    "Google Sign-In failed$codeString: ${apiException?.message ?: e.localizedMessage ?: "Unknown error"}"
+                }
             }
         }
 
         _authError.value = errorMessage
+    }
+
+    fun signInOrSignUpDemoUser() {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            val demoEmail = "demo@hisab.app"
+            val demoPass = "hisab123"
+            val isBn = _settings.value.language == "bn"
+            val demoName = if (isBn) "ডেমো ব্যবহারকারী" else "Demo User"
+
+            val signInResult = authRepository.signInWithEmail(demoEmail, demoPass)
+            if (signInResult is AuthResult.Success) {
+                _isAuthLoading.value = false
+            } else {
+                val signUpResult = authRepository.signUpWithEmail(demoName, demoEmail, demoPass)
+                _isAuthLoading.value = false
+                if (signUpResult is AuthResult.Error) {
+                    _authError.value = signUpResult.message
+                }
+            }
+        }
     }
 
     private fun findApiException(e: Throwable?): com.google.android.gms.common.api.ApiException? {

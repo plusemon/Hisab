@@ -2,6 +2,8 @@ package com.plusemon.hisab.ui.screens.auth
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -24,12 +26,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -95,6 +100,65 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var showNoAccountDialog by remember { mutableStateOf(false) }
+
+    if (showNoAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoAccountDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = if (isBn) "গুগল অ্যাকাউন্ট পাওয়া যায়নি" else "No Google Account on Device",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (isBn) "এই ডিভাইসে কোনো গুগল অ্যাকাউন্ট সাইন ইন করা নেই। আপনি ডিভাইসের সেটিংসে গিয়ে অ্যাকাউন্ট যোগ করতে পারেন, অথবা নিচে ইমেইল ও পাসওয়ার্ড দিয়ে সহজে প্রবেশ/নিবন্ধন করতে পারেন।"
+                    else "No Google account is signed in on this device or emulator. You can add a Google account in device Settings, or sign in / register using Email & Password below."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showNoAccountDialog = false
+                        try {
+                            val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
+                                putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            try {
+                                context.startActivity(Intent(Settings.ACTION_SYNC_SETTINGS))
+                            } catch (e2: Exception) {
+                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                            }
+                        }
+                    },
+                    modifier = Modifier.testTag("no_account_dialog_add")
+                ) {
+                    Text(if (isBn) "সেটিংস থেকে যোগ করুন" else "Add in Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showNoAccountDialog = false
+                    },
+                    modifier = Modifier.testTag("no_account_dialog_email")
+                ) {
+                    Text(if (isBn) "ইমেইল দিয়ে ব্যবহার করুন" else "Use Email Sign-in")
+                }
+            }
+        )
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -197,6 +261,12 @@ fun AuthScreen(
                                         photoUrl = userPhotoUrl
                                     )
                                 } catch (e: Throwable) {
+                                    val isNoCredential = e is androidx.credentials.exceptions.NoCredentialException ||
+                                            e.message?.contains("No credentials available", ignoreCase = true) == true ||
+                                            e.cause?.message?.contains("No credentials available", ignoreCase = true) == true
+                                    if (isNoCredential) {
+                                        showNoAccountDialog = true
+                                    }
                                     viewModel.handleGoogleSignInFailure(e)
                                 }
                             }
@@ -432,6 +502,28 @@ fun AuthScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(
+                        onClick = {
+                            viewModel.signInOrSignUpDemoUser()
+                        },
+                        enabled = !isLoading,
+                        modifier = Modifier.testTag("auth_demo_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "ডেমো অ্যাকাউন্ট দিয়ে দেখুন" else "Explore with Demo Account",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
