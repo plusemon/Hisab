@@ -55,17 +55,23 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Build optimized release APK
         run: |
           VERSION_TAG="${{ steps.version.outputs.version }}"
           VERSION_NO_V="${VERSION_TAG#v}"
-          VERSION_NO_V="${VERSION_NO_V#V}"
-          ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName=${VERSION_NO_V}
+          VERSION_NO_V="${VERSION_TAG#V}"
+          ./gradlew assembleRelease -PversionCode=${{ github.run_number }} -PversionName=${VERSION_NO_V}
 
       - name: Rename APK
         run: |
           mkdir -p build-outputs
-          cp app/build/outputs/apk/debug/app-debug.apk build-outputs/hisab-${{ steps.version.outputs.version }}.apk
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk build-outputs/hisab-${{ steps.version.outputs.version }}.apk
+          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp app/build/outputs/apk/release/app-release-unsigned.apk build-outputs/hisab-${{ steps.version.outputs.version }}.apk
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk build-outputs/hisab-${{ steps.version.outputs.version }}.apk
+          fi
 
       - name: Create GitHub Release and Upload APK
         uses: softprops/action-gh-release@v2

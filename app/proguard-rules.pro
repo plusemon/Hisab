@@ -1,21 +1,30 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Optimization settings
+-repackageclasses ''
+-allowaccessmodification
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep data models used by Room, JSON, and business logic
+-keep class com.plusemon.hisab.data.model.** { *; }
+-keepclassmembers enum com.plusemon.hisab.data.model.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Room database and DAOs
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    <init>();
+}
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keep class * extends androidx.room.RoomDatabase
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep reflection/metadata needed for Kotlin Coroutines and annotations
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# OkHttp rules
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Firebase & Google Play Services
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
