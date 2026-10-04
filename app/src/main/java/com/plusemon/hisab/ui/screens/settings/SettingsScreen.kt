@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.domain.util.Localization
+import com.plusemon.hisab.ui.components.UpdateDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 
@@ -86,12 +87,12 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val isBn = settings.language == "bn"
     val currentUser by viewModel.currentUser.collectAsState()
+    val updateUiState by viewModel.updateUiState.collectAsState()
 
     var showPinDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
-    var showUpdateCheckDialog by remember { mutableStateOf(false) }
 
     // PIN Setup Dialog
     if (showPinDialog) {
@@ -169,19 +170,21 @@ fun SettingsScreen(
     }
 
     // Check for Updates Dialog
-    if (showUpdateCheckDialog) {
-        AlertDialog(
-            onDismissRequest = { showUpdateCheckDialog = false },
-            icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text(if (isBn) "অ্যাপ আপডেট" else "App Updates") },
-            text = { Text(if (isBn) "আপনি হিসাব-এর সর্বশেষ ভার্সন (v1.0) ব্যবহার করছেন।" else "You are using the latest version of Hisab (v1.0).") },
-            confirmButton = {
-                Button(onClick = { showUpdateCheckDialog = false }) {
-                    Text("OK")
-                }
+    UpdateDialog(
+        updateUiState = updateUiState,
+        isBangla = isBn,
+        onDownloadAndInstall = { info -> viewModel.downloadAndInstallUpdate(info) },
+        onDismiss = {
+            val info = (updateUiState as? com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available)?.updateInfo
+            if (info != null) {
+                viewModel.dismissUpdate(info.version)
+            } else {
+                viewModel.dismissUpdateState()
             }
-        )
-    }
+        },
+        onEnablePermission = { viewModel.openInstallPermissionSettings() },
+        onRetryInstall = { info -> viewModel.retryInstall(info) }
+    )
 
     Scaffold(
         topBar = {
@@ -402,8 +405,8 @@ fun SettingsScreen(
                     SettingsRowItem(
                         icon = Icons.Default.SystemUpdate,
                         title = Localization.getString(Localization.Key.CHECK_UPDATES, isBn),
-                        value = "v1.0 (Latest)",
-                        onClick = { showUpdateCheckDialog = true }
+                        value = "v${com.plusemon.hisab.BuildConfig.VERSION_NAME}",
+                        onClick = { viewModel.checkForUpdates(isManual = true) }
                     )
                 }
             }

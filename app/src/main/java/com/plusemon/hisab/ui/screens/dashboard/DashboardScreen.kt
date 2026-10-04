@@ -68,6 +68,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.UpdateCard
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.screens.nlp.QuickEntryDialog
@@ -103,6 +104,7 @@ fun DashboardScreen(
     val insights by viewModel.insights.collectAsState()
     val allDebts by viewModel.loansDebts.collectAsState()
     val shopCreditPurchases by viewModel.shopCreditPurchases.collectAsState()
+    val updateUiState by viewModel.updateUiState.collectAsState()
 
     val totalReceivable = allDebts.filter { it.type == DebtType.OWED_TO_ME && !it.isSettled }.sumOf { it.remainingAmount }
     val totalPayable = allDebts.filter { it.type == DebtType.I_OWE && !it.isSettled }.sumOf { it.remainingAmount }
@@ -129,6 +131,17 @@ fun DashboardScreen(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 80.dp)
     ) {
+        // Update Available Dismissible Card
+        if (updateUiState is com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available) {
+            val updateInfo = (updateUiState as com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available).updateInfo
+            UpdateCard(
+                updateInfo = updateInfo,
+                isBangla = isBn,
+                onDownloadAndInstall = { viewModel.downloadAndInstallUpdate(updateInfo) },
+                onLater = { viewModel.dismissUpdate(updateInfo.version) }
+            )
+        }
+
         // Natural Language Quick Entry Search Pill
         Surface(
             modifier = Modifier

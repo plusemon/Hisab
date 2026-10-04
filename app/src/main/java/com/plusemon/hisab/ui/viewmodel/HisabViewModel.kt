@@ -23,13 +23,17 @@ import com.plusemon.hisab.data.model.User
 import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.data.model.UserSettings
 import com.plusemon.hisab.data.model.Vendor
+import com.plusemon.hisab.data.model.UpdateInfo
 import com.plusemon.hisab.data.repository.AuthRepository
 import com.plusemon.hisab.data.repository.AuthResult
 import com.plusemon.hisab.data.repository.HisabRepository
+import com.plusemon.hisab.data.repository.UpdateManager
+import com.plusemon.hisab.data.repository.UpdateRepository
 import com.plusemon.hisab.domain.util.CsvExporterImporter
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.NaturalLanguageParser
 import com.plusemon.hisab.domain.util.ParsedQuickEntry
+import com.plusemon.hisab.domain.util.VersionUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,6 +48,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+sealed class UpdateUiState {
+    object Idle : UpdateUiState()
+    object Checking : UpdateUiState()
+    data class Available(val updateInfo: UpdateInfo, val isManual: Boolean) : UpdateUiState()
+    data class UpToDate(val currentVersion: String) : UpdateUiState()
+    data class Downloading(val updateInfo: UpdateInfo, val progress: Float) : UpdateUiState()
+    data class Downloaded(val updateInfo: UpdateInfo) : UpdateUiState()
+    data class PermissionNeeded(val updateInfo: UpdateInfo) : UpdateUiState()
+}
 
 data class CategorySpendProgress(
     val category: Category,
@@ -77,6 +91,11 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     val authRepository = AuthRepository(application, db)
     val hisabRepository = HisabRepository(db)
+    val updateRepository = UpdateRepository()
+    val updateManager = UpdateManager(application)
+
+    private val _updateUiState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
+    val updateUiState = _updateUiState.asStateFlow()
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
 
@@ -161,6 +180,8 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        // Check for app updates silently on startup
+        checkForUpdates(isManual = false)
     }
 
     private fun cancelUserJobs() {
@@ -1158,5 +1179,79 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             hisabRepository.clearAllData(user.id)
             _snackbarMessage.emit("সব হিসাব মুছে ফেলা হয়েছে")
         }
+    }
+
+    // -------------------------------------------------------------
+    // IN-APP UPDATE ACTIONS
+    // -------------------------------------------------------------
+
+    fun checkForUpdates(isManual: Boolean = false) {
+        viewModelScope.launch {
+            if (isManual) {
+                _updateUiState.value = UpdateUiState.Checking
+            }
+            val currentVersion = com.plusemon.hisab.BuildConfig.VERSION_NAME
+            val release = updateRepository.fetchLatestRelease()
+
+            if (release != null && VersionUtils.isVersionNewer(currentVersion, release.version)) {
+                val dismissedVersion = updateManager.getDismissedVersion()
+                if (!isManual && release.version == dismissedVersion) {
+                    _updateUiState.value = UpdateUiState.Idle
+                } else {
+                    _updateUiState.value = UpdateUiState.Available(release, isManual)
+                }
+            } else {
+                if (isManual) {
+                    _updateUiState.value = UpdateUiState.UpToDate(currentVersion)
+                } else {
+                    _updateUiState.value = UpdateUiState.Idle
+                }
+            }
+        }
+    }
+
+    fun dismissUpdate(version: String) {
+        updateManager.saveDismissedVersion(version)
+        _updateUiState.value = UpdateUiState.Idle
+    }
+
+    fun dismissUpdateState() {
+        _updateUiState.value = UpdateUiState.Idle
+    }
+
+    fun downloadAndInstallUpdate(updateInfo: UpdateInfo) {
+        viewModelScope.launch {
+            _updateUiState.value = UpdateUiState.Downloading(updateInfo, 0f)
+            try {
+                updateManager.downloadApk(updateInfo).collect { progress ->
+                    _updateUiState.value = UpdateUiState.Downloading(updateInfo, progress)
+                }
+                promptInstallOrRequestPermission(updateInfo)
+            } catch (e: Exception) {
+                _snackbarMessage.emit("Download failed: ${e.message}")
+                _updateUiState.value = UpdateUiState.Idle
+            }
+        }
+    }
+
+    fun promptInstallOrRequestPermission(updateInfo: UpdateInfo) {
+        if (!updateManager.canInstallUnknownApps()) {
+            _updateUiState.value = UpdateUiState.PermissionNeeded(updateInfo)
+        } else {
+            val launched = updateManager.promptInstallApk(updateInfo.version)
+            if (launched) {
+                _updateUiState.value = UpdateUiState.Downloaded(updateInfo)
+            } else {
+                _updateUiState.value = UpdateUiState.PermissionNeeded(updateInfo)
+            }
+        }
+    }
+
+    fun openInstallPermissionSettings() {
+        updateManager.openInstallPermissionSettings()
+    }
+
+    fun retryInstall(updateInfo: UpdateInfo) {
+        promptInstallOrRequestPermission(updateInfo)
     }
 }
