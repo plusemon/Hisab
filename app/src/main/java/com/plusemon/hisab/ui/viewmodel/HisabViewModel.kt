@@ -468,11 +468,11 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     // AUTH ACTIONS
     // -------------------------------------------------------------
 
-    fun signInWithGoogle(email: String, name: String, photoUrl: String? = null) {
+    fun signInWithGoogle(uid: String? = null, email: String, name: String, photoUrl: String? = null) {
         viewModelScope.launch {
             _isAuthLoading.value = true
             _authError.value = null
-            when (val result = authRepository.signInWithGoogle(email, name, photoUrl)) {
+            when (val result = authRepository.signInWithGoogle(uid, email, name, photoUrl)) {
                 is AuthResult.Success -> {
                     _isAuthLoading.value = false
                 }
@@ -482,6 +482,73 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun handleGoogleSignInFailure(e: Throwable) {
+        _isAuthLoading.value = false
+        val apiException = findApiException(e)
+        val statusCode = apiException?.statusCode ?: extractStatusCodeFromException(e)
+
+        android.util.Log.e(
+            "GoogleSignIn",
+            "Google Sign-In failed! Status code: $statusCode, Message: ${apiException?.message ?: e.message}",
+            e
+        )
+
+        val errorMessage = when {
+            // User cancelled
+            e is androidx.credentials.exceptions.GetCredentialCancellationException ||
+                    statusCode == 16 || statusCode == 12501 ||
+                    e.message?.contains("cancel", ignoreCase = true) == true -> {
+                "Google Sign-In was cancelled by the user."
+            }
+            // DEVELOPER_ERROR / Configuration issue (Status code 10 or SHA-1 / package name mismatch)
+            statusCode == 10 ||
+                    e is androidx.credentials.exceptions.GetCredentialProviderConfigurationException ||
+                    e.message?.contains("DEVELOPER_ERROR", ignoreCase = true) == true ||
+                    e.message?.contains("10:", ignoreCase = true) == true ||
+                    e.cause?.message?.contains("DEVELOPER_ERROR", ignoreCase = true) == true -> {
+                "Configuration issue (DEVELOPER_ERROR - Status Code 10). Please contact support to verify SHA-1 fingerprint registration and client ID configuration."
+            }
+            // Network error (Status code 7)
+            statusCode == 7 ||
+                    e.message?.contains("NETWORK_ERROR", ignoreCase = true) == true ||
+                    e.message?.contains("network", ignoreCase = true) == true ||
+                    e is java.net.UnknownHostException || e is java.io.IOException -> {
+                "Network error during Google Sign-In. Please check your internet connection and try again."
+            }
+            else -> {
+                val codeString = if (statusCode != null) " (Status Code $statusCode)" else ""
+                "Google Sign-In failed$codeString: ${apiException?.message ?: e.localizedMessage ?: "Unknown error"}"
+            }
+        }
+
+        _authError.value = errorMessage
+    }
+
+    private fun findApiException(e: Throwable?): com.google.android.gms.common.api.ApiException? {
+        var current = e
+        while (current != null) {
+            if (current is com.google.android.gms.common.api.ApiException) {
+                return current
+            }
+            current = current.cause
+        }
+        return null
+    }
+
+    private fun extractStatusCodeFromException(e: Throwable?): Int? {
+        var current = e
+        while (current != null) {
+            val msg = current.message ?: ""
+            val regex = Regex("""\b(status\s*code|status):\s*(\d+)""", RegexOption.IGNORE_CASE)
+            val match = regex.find(msg)
+            if (match != null) {
+                return match.groupValues[2].toIntOrNull()
+            }
+            current = current.cause
+        }
+        return null
     }
 
     fun signInWithEmail(email: String, pass: String) {

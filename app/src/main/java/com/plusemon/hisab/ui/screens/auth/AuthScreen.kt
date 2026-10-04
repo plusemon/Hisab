@@ -1,5 +1,8 @@
 package com.plusemon.hisab.ui.screens.auth
 
+import android.app.Activity
+import android.content.Context
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,11 +52,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -62,14 +67,24 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 @Composable
 fun AuthScreen(
     viewModel: HisabViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     val settings by viewModel.settings.collectAsState()
     val isBn = settings.language == "bn"
     val isLoading by viewModel.isAuthLoading.collectAsState()
@@ -140,13 +155,53 @@ fun AuthScreen(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            // Instant Google Sign In flow with real user email
-                            viewModel.signInWithGoogle(
-                                email = "user.hisab@gmail.com",
-                                name = "Hisab User",
-                                photoUrl = null
-                            )
+                            coroutineScope.launch {
+                                try {
+                                    val activity = context as? Activity
+                                        ?: throw IllegalStateException("Context must be an Activity")
+
+                                    val credentialManager = CredentialManager.create(context)
+                                    val webClientId = "990037686252-4ma0sd2m5hmihe6802aqm4qo0vfpauue.apps.googleusercontent.com"
+
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(webClientId)
+                                        .setAutoSelectEnabled(false)
+                                        .build()
+
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+
+                                    val result = credentialManager.getCredential(
+                                        context = activity,
+                                        request = request
+                                    )
+
+                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                                    val idToken = googleIdTokenCredential.idToken
+                                    val userEmail = googleIdTokenCredential.id
+                                    val userDisplayName = googleIdTokenCredential.displayName
+                                        ?: googleIdTokenCredential.givenName
+                                        ?: userEmail.substringBefore("@")
+                                    val userPhotoUrl = googleIdTokenCredential.profilePictureUri?.toString()
+                                    val googleId = googleIdTokenCredential.id
+
+                                    // Optionally authenticate with Firebase Auth
+                                    val firebaseUid = signInFirebaseWithGoogleToken(context, idToken)
+
+                                    viewModel.signInWithGoogle(
+                                        uid = firebaseUid ?: googleId,
+                                        email = userEmail,
+                                        name = userDisplayName,
+                                        photoUrl = userPhotoUrl
+                                    )
+                                } catch (e: Throwable) {
+                                    viewModel.handleGoogleSignInFailure(e)
+                                }
+                            }
                         },
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -379,6 +434,37 @@ fun AuthScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+private suspend fun signInFirebaseWithGoogleToken(context: Context, idToken: String): String? {
+    return suspendCancellableCoroutine { continuation ->
+        try {
+            if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+                continuation.resume(null, onCancellation = null)
+                return@suspendCancellableCoroutine
+            }
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
+            auth.signInWithCredential(credential)
+                .addOnSuccessListener { result ->
+                    val uid = result.user?.uid
+                    if (continuation.isActive) {
+                        continuation.resume(uid, onCancellation = null)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.w("GoogleSignIn", "Firebase Auth sign-in failed: ${e.message}")
+                    if (continuation.isActive) {
+                        continuation.resume(null, onCancellation = null)
+                    }
+                }
+        } catch (e: Exception) {
+            Log.w("GoogleSignIn", "Firebase Auth exception: ${e.message}")
+            if (continuation.isActive) {
+                continuation.resume(null, onCancellation = null)
             }
         }
     }

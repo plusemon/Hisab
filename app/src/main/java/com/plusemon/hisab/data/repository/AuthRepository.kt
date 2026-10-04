@@ -21,6 +21,11 @@ import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.util.UUID
 
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+
 sealed class AuthResult {
     data class Success(val user: User) : AuthResult()
     data class Error(val message: String) : AuthResult()
@@ -62,27 +67,30 @@ class AuthRepository(
     }
 
     suspend fun signInWithGoogle(
+        uid: String? = null,
         email: String,
         displayName: String,
         photoUrl: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         try {
             var user = userDao.getUserByEmail(email)
+            val userId = uid ?: user?.id ?: UUID.randomUUID().toString()
+
             if (user == null) {
-                // Create new Google User
-                val newId = UUID.randomUUID().toString()
+                // Create new Google User with real credentials
                 user = User(
-                    id = newId,
+                    id = userId,
                     email = email,
                     displayName = displayName.ifBlank { "User" },
                     photoUrl = photoUrl,
                     isGoogleUser = true
                 )
                 userDao.insertUser(user)
-                seedUserData(newId)
+                seedUserData(userId)
             } else {
                 // Update photo / name if needed
                 val updated = user.copy(
+                    id = if (uid != null) uid else user.id,
                     displayName = displayName.ifBlank { user.displayName },
                     photoUrl = photoUrl ?: user.photoUrl
                 )
@@ -90,10 +98,33 @@ class AuthRepository(
                 user = updated
             }
 
+            // Sync user document to Firestore with real uid and email
+            syncFirestoreUser(userId, email, displayName, photoUrl)
+
             saveSession(user)
             AuthResult.Success(user)
         } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to process Google sign in: ${e.message}", e)
             AuthResult.Error(e.localizedMessage ?: "Failed to sign in with Google")
+        }
+    }
+
+    private fun syncFirestoreUser(uid: String, email: String, displayName: String, photoUrl: String?) {
+        try {
+            if (FirebaseApp.getApps(context).isNotEmpty()) {
+                val firestore = FirebaseFirestore.getInstance()
+                val userData = hashMapOf(
+                    "uid" to uid,
+                    "email" to email,
+                    "displayName" to displayName,
+                    "photoUrl" to photoUrl,
+                    "isGoogleUser" to true,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+                firestore.collection("users").document(uid).set(userData, SetOptions.merge())
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Firestore sync skipped or error: ${e.message}")
         }
     }
 
