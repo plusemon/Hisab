@@ -1,5 +1,6 @@
 package com.plusemon.hisab.ui.screens.reports
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,9 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PieChart
@@ -56,25 +57,22 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.data.model.Category
-import com.plusemon.hisab.data.model.TransactionType
 import com.plusemon.hisab.data.model.TransactionWithDetails
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.AmberTertiary
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
-import com.plusemon.hisab.ui.theme.TealSecondary
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
-import com.plusemon.hisab.ui.viewmodel.PeriodReport
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,7 +159,7 @@ fun ReportsScreen(
                 }
             }
 
-            // Overview 4-Metric Grid
+            // Overview 4-Metric Grid (Flat Card Design System)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -175,8 +173,10 @@ fun ReportsScreen(
                     // Total Income Card
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = IncomeGreen.copy(alpha = 0.12f))
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -185,7 +185,7 @@ fun ReportsScreen(
                                 Text(
                                     text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBn),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = IncomeGreen,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -196,7 +196,7 @@ fun ReportsScreen(
                                 useBanglaDigits = useBnDigits,
                                 hideBalances = hideBalances,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = IncomeGreen
                             )
                         }
@@ -205,8 +205,10 @@ fun ReportsScreen(
                     // Total Expense Card
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = ExpenseRed.copy(alpha = 0.12f))
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -215,7 +217,7 @@ fun ReportsScreen(
                                 Text(
                                     text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBn),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = ExpenseRed,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -226,7 +228,7 @@ fun ReportsScreen(
                                 useBanglaDigits = useBnDigits,
                                 hideBalances = hideBalances,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = ExpenseRed
                             )
                         }
@@ -240,8 +242,10 @@ fun ReportsScreen(
                     // Net Savings Card
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,7 +254,7 @@ fun ReportsScreen(
                                 Text(
                                     text = Localization.getString(Localization.Key.NET_SAVINGS, isBn),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -261,7 +265,7 @@ fun ReportsScreen(
                                 useBanglaDigits = useBnDigits,
                                 hideBalances = hideBalances,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = if (report.netSavings >= 0) MaterialTheme.colorScheme.primary else ExpenseRed
                             )
                         }
@@ -270,8 +274,10 @@ fun ReportsScreen(
                     // Savings Rate Card
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = AmberTertiary.copy(alpha = 0.12f))
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -280,7 +286,7 @@ fun ReportsScreen(
                                 Text(
                                     text = Localization.getString(Localization.Key.SAVINGS_RATE, isBn),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = AmberTertiary,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -289,7 +295,7 @@ fun ReportsScreen(
                             Text(
                                 text = if (useBnDigits) Formatters.toBanglaDigits(rateStr) else rateStr,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = AmberTertiary
                             )
                         }
@@ -304,9 +310,10 @@ fun ReportsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -322,11 +329,10 @@ fun ReportsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (report.categoryBreakdown.isEmpty()) {
-                        Text(
-                            text = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 20.dp)
+                        EmptyStateView(
+                            icon = Icons.Default.PieChart,
+                            title = if (isBn) "কোনো ব্যয়ের তথ্য নেই" else "No expense data for this period",
+                            description = if (isBn) "নির্বাচিত সময়ে কোনো খরচ রেকর্ড করা হয়নি।" else "There are no expenses recorded in the selected time range."
                         )
                     } else {
                         // Donut Chart Canvas
@@ -369,7 +375,7 @@ fun ReportsScreen(
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(RoundedCornerShape(12.dp))
                                         .clickable { drilldownCategory = cat }
                                         .padding(vertical = 4.dp),
                                     color = Color.Transparent
@@ -442,9 +448,10 @@ fun ReportsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -480,7 +487,7 @@ fun DonutChart(
         if (totalExpense <= 0) return@Canvas
 
         var startAngle = -90f
-        val strokeWidth = 26.dp.toPx()
+        val strokeWidth = 24.dp.toPx()
 
         items.forEach { (cat, amount) ->
             val sweep = ((amount / totalExpense) * 360f).toFloat()
@@ -489,7 +496,7 @@ fun DonutChart(
             drawArc(
                 color = color,
                 startAngle = startAngle,
-                sweepAngle = sweep - 2f, // small gap
+                sweepAngle = sweep - 2f,
                 useCenter = false,
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                 size = Size(size.width - strokeWidth, size.height - strokeWidth),
@@ -525,22 +532,20 @@ fun DailySpendingBarChart(
                 verticalArrangement = Arrangement.Bottom,
                 modifier = Modifier.weight(1f)
             ) {
-                // Bar
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.5f)
+                        .fillMaxWidth(0.45f)
                         .height((100 * heightFraction).dp)
-                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                        .background(ExpenseRed.copy(alpha = 0.85f))
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(ExpenseRed)
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Date Label
                 val shortDate = dateStr.split(" ").take(2).joinToString(" ")
                 Text(
                     text = shortDate,
-                    fontSize = 9.sp,
+                    fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
@@ -564,8 +569,9 @@ fun CategoryDrilldownDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier
@@ -584,7 +590,7 @@ fun CategoryDrilldownDialog(
                             size = 36.dp,
                             iconSize = 18.dp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = category.localizedName(isBangla),
                             style = MaterialTheme.typography.titleMedium,
@@ -600,11 +606,10 @@ fun CategoryDrilldownDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (transactions.isEmpty()) {
-                    Text(
-                        text = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBangla),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                    EmptyStateView(
+                        icon = Icons.Default.BarChart,
+                        title = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBangla),
+                        description = if (isBangla) "এই ক্যাটাগরিতে কোনো লেনদেন নেই।" else "No transactions recorded for this category."
                     )
                 } else {
                     LazyColumn(

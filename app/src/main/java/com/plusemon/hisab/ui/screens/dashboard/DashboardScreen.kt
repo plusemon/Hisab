@@ -1,6 +1,7 @@
 package com.plusemon.hisab.ui.screens.dashboard
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,13 +23,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -37,11 +37,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +64,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.UpdateCard
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
@@ -147,11 +144,12 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .clickable { showNlpDialog = true }
                 .testTag("nlp_quick_entry_pill"),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(14.dp)
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -169,7 +167,7 @@ fun DashboardScreen(
                 Text(
                     text = if (isBn) "সহজ ভাষায় হিসাব লিখুন (যেমন: বাজার ১২০০)..." else "Type natural entry (e.g. lunch 250 cash)...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -182,10 +180,12 @@ fun DashboardScreen(
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .clickable { onNavigateToDebts() }
                     .testTag("dashboard_debts_card"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -194,188 +194,176 @@ fun DashboardScreen(
                         Text(
                             text = if (isBn) "ধার ও দোকান বাকি (তথ্য)" else "Lending & Shop Credit",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(text = if (isBn) "পাওনা" else "Receivable", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                            CurrencyAmountText(amount = totalReceivable, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = IncomeGreen, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(text = if (isBn) "পাওনা" else "Receivable", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CurrencyAmountText(amount = totalReceivable, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = IncomeGreen, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Column {
-                            Text(text = if (isBn) "দেনা" else "Payable", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                            CurrencyAmountText(amount = totalPayable, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ExpenseRed, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(text = if (isBn) "দেনা" else "Payable", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CurrencyAmountText(amount = totalPayable, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ExpenseRed, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Column {
-                            Text(text = if (isBn) "দোকান বাকি" else "Shop Credit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                            CurrencyAmountText(amount = totalShopOwed, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ExpenseRed, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(text = if (isBn) "দোকান বাকি" else "Shop Credit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CurrencyAmountText(amount = totalShopOwed, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ExpenseRed, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
 
-        // Hero Total Net Worth Card
-        ElevatedCard(
+        // Hero Total Net Worth Card (Flat Solid Color, No Gradient)
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            ),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                            )
-                        )
-                    )
                     .padding(20.dp)
             ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBn),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
                     ) {
                         Text(
-                            text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBn),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            text = Formatters.formatMonthYear(Formatters.getCurrentMonthYear(), isBn),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Big Hero Number
+                CurrencyAmountText(
+                    amount = totalBalance,
+                    currencySymbol = currSymbol,
+                    useBanglaDigits = useBnDigits,
+                    hideBalances = hideBalances,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.testTag("hero_total_balance_text")
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Income & Expense Sub-Cards (Flat block, crisp high contrast)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Income Block
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = Formatters.formatMonthYear(Formatters.getCurrentMonthYear(), isBn),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDownward,
+                                    contentDescription = null,
+                                    tint = IncomeGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBn),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                                )
+                                CurrencyAmountText(
+                                    amount = monthIncome,
+                                    currencySymbol = currSymbol,
+                                    useBanglaDigits = useBnDigits,
+                                    hideBalances = hideBalances,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Big Number
-                    CurrencyAmountText(
-                        amount = totalBalance,
-                        currencySymbol = currSymbol,
-                        useBanglaDigits = useBnDigits,
-                        hideBalances = hideBalances,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.testTag("hero_total_balance_text")
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Income & Expense Sub-Cards
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Expense Block
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
                     ) {
-                        // Income Block
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDownward,
-                                        contentDescription = null,
-                                        tint = IncomeGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBn),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f),
-                                        fontSize = 10.sp
-                                    )
-                                    CurrencyAmountText(
-                                        amount = monthIncome,
-                                        currencySymbol = currSymbol,
-                                        useBanglaDigits = useBnDigits,
-                                        hideBalances = hideBalances,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = null,
+                                    tint = ExpenseRed,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
-                        }
-
-                        // Expense Block
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowUpward,
-                                        contentDescription = null,
-                                        tint = ExpenseRed,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBn),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f),
-                                        fontSize = 10.sp
-                                    )
-                                    CurrencyAmountText(
-                                        amount = monthExpense,
-                                        currencySymbol = currSymbol,
-                                        useBanglaDigits = useBnDigits,
-                                        hideBalances = hideBalances,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBn),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                                )
+                                CurrencyAmountText(
+                                    amount = monthExpense,
+                                    currencySymbol = currSymbol,
+                                    useBanglaDigits = useBnDigits,
+                                    hideBalances = hideBalances,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -383,18 +371,18 @@ fun DashboardScreen(
             }
         }
 
-        // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer]
+        // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer] (Restyled to 12.dp radius instead of pills)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = { onNavigateToAddTransaction(TransactionType.EXPENSE) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp)
+                    .height(48.dp)
                     .testTag("fast_add_expense_btn"),
                 colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
                 shape = RoundedCornerShape(12.dp),
@@ -404,15 +392,14 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -421,7 +408,7 @@ fun DashboardScreen(
                 onClick = { onNavigateToAddTransaction(TransactionType.INCOME) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp)
+                    .height(48.dp)
                     .testTag("fast_add_income_btn"),
                 colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen),
                 shape = RoundedCornerShape(12.dp),
@@ -431,15 +418,14 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.INCOME_SHORT, isBn),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -448,7 +434,7 @@ fun DashboardScreen(
                 onClick = { onNavigateToAddTransaction(TransactionType.TRANSFER) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp)
+                    .height(48.dp)
                     .testTag("fast_transfer_btn"),
                 colors = ButtonDefaults.buttonColors(containerColor = TransferBlue),
                 shape = RoundedCornerShape(12.dp),
@@ -459,20 +445,19 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
 
-        // Budget Warning Alert Banner (if any category exceeded)
+        // Budget Warning Alert Banner
         val budgetWarnings = categoryProgressList.filter { it.status == BudgetStatus.EXCEEDED || it.status == BudgetStatus.WARNING }
         if (budgetWarnings.isNotEmpty()) {
             val topWarning = budgetWarnings.first()
@@ -482,22 +467,22 @@ fun DashboardScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .clickable { onNavigateToBudgets() },
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isExceeded) ExpenseRed.copy(alpha = 0.12f) else Color(0xFFF59E0B).copy(alpha = 0.12f)
-                ),
-                shape = RoundedCornerShape(12.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, if (isExceeded) ExpenseRed else Color(0xFFD97706)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = null,
                         tint = if (isExceeded) ExpenseRed else Color(0xFFD97706),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -531,21 +516,21 @@ fun DashboardScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(22.dp)
+                        tint = Color(0xFFD97706),
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
@@ -562,7 +547,7 @@ fun DashboardScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -572,7 +557,7 @@ fun DashboardScreen(
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = onNavigateToAccounts) {
-                Text(Localization.getString(Localization.Key.SEE_ALL, isBn), fontSize = 13.sp)
+                Text(Localization.getString(Localization.Key.SEE_ALL, isBn), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -596,7 +581,7 @@ fun DashboardScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -606,59 +591,18 @@ fun DashboardScreen(
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = onNavigateToTransactions) {
-                Text(Localization.getString(Localization.Key.SEE_ALL, isBn), fontSize = 13.sp)
+                Text(Localization.getString(Localization.Key.SEE_ALL, isBn), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
 
         val recentTxs = transactions.take(6)
         if (recentTxs.isEmpty()) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = if (isBn) "উপরে খরচ বা আয় বাটনে ট্যাপ করে নতুন হিসাব লিখুন।" else "Tap + Expense or + Income above to record your first entry.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    )
-                }
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                EmptyStateView(
+                    icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                    title = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
+                    description = if (isBn) "উপরে খরচ বা আয় বাটনে ট্যাপ করে নতুন হিসাব লিখুন।" else "Tap + Expense or + Income above to record your first entry."
+                )
             }
         } else {
             Column(
@@ -697,11 +641,10 @@ fun AccountCarouselCard(
             .width(160.dp)
             .clickable { onClick() }
             .testTag("account_card_${item.account.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -716,8 +659,8 @@ fun AccountCarouselCard(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(CircleShape)
-                        .background(accColor.copy(alpha = 0.15f)),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -777,7 +720,8 @@ fun TransactionRowItem(
             .testTag("tx_item_${t.id}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -790,8 +734,8 @@ fun TransactionRowItem(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(TransferBlue.copy(alpha = 0.15f)),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -806,13 +750,13 @@ fun TransactionRowItem(
                     iconName = item.category.iconName,
                     colorHex = item.category.colorHex,
                     size = 42.dp,
-                    iconSize = 22.dp
+                    iconSize = 20.dp
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
@@ -836,7 +780,7 @@ fun TransactionRowItem(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
@@ -866,8 +810,7 @@ fun TransactionRowItem(
                 Text(
                     text = Formatters.formatDate(t.dateTimestamp, isBangla),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

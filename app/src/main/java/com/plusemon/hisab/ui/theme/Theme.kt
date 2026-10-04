@@ -21,9 +21,9 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = DarkTealSecondaryContainer,
     onSecondaryContainer = DarkTealOnSecondaryContainer,
     tertiary = AmberTertiary,
-    onTertiary = AmberOnTertiary,
-    tertiaryContainer = AmberTertiaryContainer,
-    onTertiaryContainer = AmberOnTertiaryContainer,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFF78350F),
+    onTertiaryContainer = Color(0xFFFEF3C7),
     background = DarkBackground,
     surface = DarkSurface,
     surfaceVariant = DarkSurfaceVariant,
@@ -31,9 +31,10 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = DarkOnSurface,
     onSurfaceVariant = DarkOnSurfaceVariant,
     outline = DarkOutline,
-    error = Color(0xFFF87171),
+    outlineVariant = DarkOutlineVariant,
+    error = Color(0xFFEF4444),
     errorContainer = Color(0xFF7F1D1D),
-    onError = Color(0xFF450A0A)
+    onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -46,9 +47,9 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = TealSecondaryContainer,
     onSecondaryContainer = TealOnSecondaryContainer,
     tertiary = AmberTertiary,
-    onTertiary = AmberOnTertiary,
-    tertiaryContainer = AmberTertiaryContainer,
-    onTertiaryContainer = AmberOnTertiaryContainer,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFEF3C7),
+    onTertiaryContainer = Color(0xFF78350F),
     background = LightBackground,
     surface = LightSurface,
     surfaceVariant = LightSurfaceVariant,
@@ -56,15 +57,16 @@ private val LightColorScheme = lightColorScheme(
     onSurface = LightOnSurface,
     onSurfaceVariant = LightOnSurfaceVariant,
     outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
     error = ExpenseRed,
-    errorContainer = ExpenseRedContainer,
+    errorContainer = Color(0xFFFEE2E2),
     onError = Color.White
 )
 
 @Composable
 fun HisabTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Set false by default to ensure Hisab's signature branding
+    dynamicColor: Boolean = false, // Set false to ensure Hisab's signature clean branding
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,8 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
@@ -41,8 +42,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -123,7 +124,7 @@ fun SettingsScreen(
     if (showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
-            title = { Text(if (isBn) "সব তথ্য মুছুন?" else "Clear All Data?") },
+            title = { Text(if (isBn) "সব তথ্য মুছুন?" else "Clear All Data?", fontWeight = FontWeight.Bold) },
             text = { Text(if (isBn) "আপনার সব লেনদেন, বাজেট এবং হিসাব মুছে যাবে।" else "All your transactions, budgets and records will be deleted.") },
             confirmButton = {
                 Button(
@@ -131,9 +132,10 @@ fun SettingsScreen(
                         viewModel.clearAllData()
                         showClearDataDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(Localization.getString(Localization.Key.DELETE, isBn))
+                    Text(Localization.getString(Localization.Key.DELETE, isBn), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -148,7 +150,7 @@ fun SettingsScreen(
     if (showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text(Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn)) },
+            title = { Text(Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn), fontWeight = FontWeight.Bold) },
             text = { Text(Localization.getString(Localization.Key.DELETE_ACCOUNT_CONFIRM, isBn)) },
             confirmButton = {
                 Button(
@@ -156,9 +158,10 @@ fun SettingsScreen(
                         viewModel.deleteAccount()
                         showDeleteAccountDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(Localization.getString(Localization.Key.DELETE, isBn))
+                    Text(Localization.getString(Localization.Key.DELETE, isBn), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -210,12 +213,13 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Profile Card
+            // Profile Card (Flat Design System)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -225,14 +229,14 @@ fun SettingsScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = currentUser?.displayName?.take(2)?.uppercase() ?: "U",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -257,7 +261,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section: Localization & Language
+            // Section: Language & Display
             Text(
                 text = if (isBn) "ভাষা ও প্রদর্শন" else "Language & Display",
                 style = MaterialTheme.typography.labelLarge,
@@ -268,8 +272,10 @@ fun SettingsScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
                     SettingsRowItem(
@@ -278,7 +284,7 @@ fun SettingsScreen(
                         value = if (isBn) "বাংলা" else "English",
                         onClick = { viewModel.toggleLanguage() }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.Default.Language,
                         title = Localization.getString(Localization.Key.NUMERAL_SYSTEM, isBn),
@@ -301,8 +307,10 @@ fun SettingsScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
                     // PIN Lock Switch
@@ -335,7 +343,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
                     // Recurring Transactions
                     SettingsRowItem(
@@ -359,8 +367,10 @@ fun SettingsScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
                     SettingsRowItem(
@@ -373,7 +383,7 @@ fun SettingsScreen(
                             Toast.makeText(context, if (isBn) "সারাংশ কপি করা হয়েছে" else "Summary copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.Default.FileDownload,
                         title = Localization.getString(Localization.Key.EXPORT_CSV, isBn),
@@ -384,7 +394,7 @@ fun SettingsScreen(
                             Toast.makeText(context, if (isBn) "CSV ডাটা কপি করা হয়েছে" else "CSV data copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.Default.CloudUpload,
                         title = Localization.getString(Localization.Key.IMPORT_CSV, isBn),
@@ -398,8 +408,10 @@ fun SettingsScreen(
             // Section: About & Updates
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
                     SettingsRowItem(
@@ -416,8 +428,10 @@ fun SettingsScreen(
             // Section: Danger & Logout
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
                     SettingsRowItem(
@@ -426,14 +440,14 @@ fun SettingsScreen(
                         titleColor = ExpenseRed,
                         onClick = { showClearDataDialog = true }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.Default.DeleteForever,
                         title = Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn),
                         titleColor = ExpenseRed,
                         onClick = { showDeleteAccountDialog = true }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.AutoMirrored.Filled.ExitToApp,
                         title = Localization.getString(Localization.Key.SIGN_OUT, isBn),
@@ -506,9 +520,10 @@ fun SetPinDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -566,9 +581,9 @@ fun SetPinDialog(
                                 isError = true
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -586,9 +601,10 @@ fun ImportCsvDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -633,9 +649,9 @@ fun ImportCsvDialog(
                                 onImport(rawCsvText.trim())
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(if (isBangla) "ইমপোর্ট করুন" else "Import")
+                        Text(if (isBangla) "ইমপোর্ট করুন" else "Import", fontWeight = FontWeight.Bold)
                     }
                 }
             }

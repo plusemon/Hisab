@@ -1,6 +1,7 @@
 package com.plusemon.hisab.ui.screens.budgets
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +76,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.AmberTertiary
@@ -208,9 +210,7 @@ fun BudgetsAndGoalsScreen(
             }
 
             if (selectedTab == 0) {
-                // ==========================================
                 // BUDGETS TAB
-                // ==========================================
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -247,52 +247,13 @@ fun BudgetsAndGoalsScreen(
                     val budgetedCategories = categoryProgressList.filter { it.budgetLimit != null && it.budgetLimit > 0 }
                     if (budgetedCategories.isEmpty()) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(28.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.PieChart,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Text(
-                                        text = Localization.getString(Localization.Key.EMPTY_BUDGETS, isBn),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = if (isBn) "মাসিক বাজেট নির্ধারণ করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to set up your monthly budget.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
+                            EmptyStateView(
+                                icon = Icons.Default.PieChart,
+                                title = Localization.getString(Localization.Key.EMPTY_BUDGETS, isBn),
+                                description = if (isBn) "মাসিক বাজেট নির্ধারণ করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to set up your monthly budget.",
+                                actionLabel = if (isBn) "+ বাজেট সেট করুন" else "+ Set Budget",
+                                onActionClick = { showAddBudgetDialog = true }
+                            )
                         }
                     } else {
                         items(budgetedCategories, key = { it.category.id }) { item ->
@@ -307,61 +268,20 @@ fun BudgetsAndGoalsScreen(
                     }
                 }
             } else {
-                // ==========================================
                 // SAVINGS GOALS TAB
-                // ==========================================
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (savingsGoals.isEmpty()) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(28.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Savings,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Text(
-                                        text = Localization.getString(Localization.Key.EMPTY_GOALS, isBn),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = if (isBn) "সঞ্চয় লক্ষ্য সেট করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to create a savings goal.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
+                            EmptyStateView(
+                                icon = Icons.Default.Savings,
+                                title = Localization.getString(Localization.Key.EMPTY_GOALS, isBn),
+                                description = if (isBn) "সঞ্চয় লক্ষ্য সেট করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to create a savings goal.",
+                                actionLabel = if (isBn) "+ সঞ্চয় লক্ষ্য যোগ করুন" else "+ Create Savings Goal",
+                                onActionClick = { showAddGoalDialog = true }
+                            )
                         }
                     } else {
                         items(savingsGoals, key = { it.id }) { goal ->
@@ -405,9 +325,10 @@ fun OverallBudgetCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -426,7 +347,7 @@ fun OverallBudgetCard(
                 )
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = statusColor.copy(alpha = 0.15f)
                 ) {
                     Text(
@@ -445,13 +366,13 @@ fun OverallBudgetCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Progress Bar (3-state)
+            // Progress Bar
             LinearProgressIndicator(
                 progress = { progress.percentage.coerceIn(0f, 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
                 color = statusColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -515,9 +436,10 @@ fun CategoryBudgetProgressItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -555,7 +477,7 @@ fun CategoryBudgetProgressItem(
                 Text(
                     text = "${(progress.percentage * 100).toInt()}%",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     color = statusColor
                 )
             }
@@ -566,8 +488,8 @@ fun CategoryBudgetProgressItem(
                 progress = { progress.percentage.coerceIn(0f, 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
                 color = statusColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -591,9 +513,10 @@ fun SavingsGoalItemCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -606,16 +529,16 @@ fun SavingsGoalItemCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(goalColor.copy(alpha = 0.15f)),
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = getIconByName(goal.iconName),
                         contentDescription = null,
                         tint = goalColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -660,7 +583,7 @@ fun SavingsGoalItemCard(
                         useBanglaDigits = useBnDigits,
                         hideBalances = hideBalances,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Bold,
                         color = goalColor
                     )
                 }
@@ -688,15 +611,15 @@ fun SavingsGoalItemCard(
                 progress = { progressPercent },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
                 color = goalColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Action Buttons: Deposit & Withdraw
+            // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -704,7 +627,7 @@ fun SavingsGoalItemCard(
                 OutlinedButton(
                     onClick = onWithdraw,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(Localization.getString(Localization.Key.WITHDRAW, isBangla))
                 }
@@ -712,12 +635,12 @@ fun SavingsGoalItemCard(
                 Button(
                     onClick = onDeposit,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = goalColor)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(Localization.getString(Localization.Key.DEPOSIT, isBangla))
+                    Text(Localization.getString(Localization.Key.DEPOSIT, isBangla), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -738,9 +661,10 @@ fun AddEditBudgetDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -751,7 +675,6 @@ fun AddEditBudgetDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Toggle Overall vs Category
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -762,10 +685,10 @@ fun AddEditBudgetDialog(
                             containerColor = if (!isOverall) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = if (!isOverall) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget", fontSize = 12.sp)
+                        Text(if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -774,10 +697,10 @@ fun AddEditBudgetDialog(
                             containerColor = if (isOverall) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = if (isOverall) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isBangla) "মোট বাজেট" else "Overall Budget", fontSize = 12.sp)
+                        Text(if (isBangla) "মোট বাজেট" else "Overall Budget", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -852,9 +775,9 @@ fun AddEditBudgetDialog(
                                 onSave(if (isOverall) null else selectedCategoryId, limit)
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -873,9 +796,10 @@ fun AddSavingsGoalDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -924,9 +848,9 @@ fun AddSavingsGoalDialog(
                                 onSave(name.trim(), target, null, "", "#0D9488", "savings")
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -947,9 +871,10 @@ fun AdjustGoalSavingsDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -988,9 +913,9 @@ fun AdjustGoalSavingsDialog(
                                 onConfirm(amt)
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }

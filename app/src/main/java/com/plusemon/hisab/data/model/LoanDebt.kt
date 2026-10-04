@@ -6,8 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 enum class DebtType(val labelEn: String, val labelBn: String) {
-    OWED_TO_ME("Gave Money (পাওনা)", "দিলাম (পাওনা)"),
-    I_OWE("Took Money (দেনা)", "নিলাম (দেনা)")
+    OWED_TO_ME("Gave Money", "পাওনা"),
+    I_OWE("Took Money", "দেনা")
 }
 
 @Entity(

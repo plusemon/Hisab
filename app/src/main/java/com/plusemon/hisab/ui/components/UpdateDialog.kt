@@ -212,7 +212,7 @@ fun UpdateDialog(
                 text = {
                     Text(
                         text = if (isBangla)
-                            "এপকে ইন্সটল করতে অ্যান্ড্রয়েড সেটিংস থেকে 'Install unknown apps' অনুমতি প্রদান করুন।"
+                            "অ্যাপ আপডেট ইনস্টল করতে অ্যান্ড্রয়েড সেটিংস থেকে 'অপরিচিত অ্যাপ ইনস্টল' করার অনুমতি প্রদান করুন।"
                         else
                             "To install the updated version, please grant 'Install unknown apps' permission for Hisab in Android settings."
                     )

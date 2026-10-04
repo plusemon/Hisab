@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CreditCard
@@ -18,15 +19,14 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,25 +81,25 @@ fun CategoryIconBadge(
     iconName: String,
     colorHex: String,
     modifier: Modifier = Modifier,
-    size: Dp = 44.dp,
-    iconSize: Dp = 22.dp,
+    size: Dp = 42.dp,
+    iconSize: Dp = 20.dp,
     isRounded: Boolean = true
 ) {
-    val mainColor = parseColorHex(colorHex)
-    val bgColor = mainColor.copy(alpha = 0.15f)
+    val iconColor = parseColorHex(colorHex)
+    // Flat neutral treatment with icon carrying the distinct color
     val shape = if (isRounded) RoundedCornerShape(12.dp) else CircleShape
 
     Box(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .background(bgColor),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = getIconByName(iconName),
             contentDescription = null,
-            tint = mainColor,
+            tint = iconColor,
             modifier = Modifier.size(iconSize)
         )
     }

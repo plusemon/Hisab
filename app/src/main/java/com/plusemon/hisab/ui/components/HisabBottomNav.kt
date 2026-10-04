@@ -1,17 +1,19 @@
 package com.plusemon.hisab.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -45,50 +47,56 @@ fun HisabBottomNav(
         NavItem("reports", Localization.Key.REPORTS, Icons.Default.BarChart, "nav_reports")
     )
 
-    NavigationBar(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp
     ) {
-        items.forEach { item ->
-            val isSelected = currentRoute == item.route
-            val label = when (item.route) {
-                "dashboard" -> if (isBangla) "হোম" else "Home"
-                "transactions" -> if (isBangla) "লেনদেন" else "History"
-                "budgets_goals" -> if (isBangla) "বাজেট" else "Budgets"
-                "debts" -> if (isBangla) "দেনা-পাওনা" else "Debts"
-                "reports" -> if (isBangla) "রিপোর্ট" else "Reports"
-                else -> Localization.getString(item.titleKey, isBangla)
-            }
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            items.forEach { item ->
+                val isSelected = currentRoute == item.route
+                val label = when (item.route) {
+                    "dashboard" -> if (isBangla) "হোম" else "Home"
+                    "transactions" -> if (isBangla) "লেনদেন" else "History"
+                    "budgets_goals" -> if (isBangla) "বাজেট" else "Budgets"
+                    "debts" -> if (isBangla) "দেনা-পাওনা" else "Debts"
+                    "reports" -> if (isBangla) "রিপোর্ট" else "Reports"
+                    else -> Localization.getString(item.titleKey, isBangla)
+                }
 
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onNavigate(item.route) },
-                icon = {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = label
-                    )
-                },
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag(item.testTag)
-            )
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onNavigate(item.route) },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = label
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            softWrap = false
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.testTag(item.testTag)
+                )
+            }
         }
     }
 }

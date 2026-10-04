@@ -1,6 +1,7 @@
 package com.plusemon.hisab.ui.screens.accounts
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,9 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -154,13 +155,15 @@ fun AccountsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Net Worth Summary Banner
+            // Net Worth Summary Banner (Flat Card Design System)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -178,8 +181,8 @@ fun AccountsScreen(
                         currencySymbol = currSymbol,
                         useBanglaDigits = useBnDigits,
                         hideBalances = hideBalances,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -225,9 +228,10 @@ fun AccountDetailedItem(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("account_item_${acc.id}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -237,16 +241,16 @@ fun AccountDetailedItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(accColor.copy(alpha = 0.15f)),
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = getIconByName(acc.iconName),
                     contentDescription = null,
                     tint = accColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
@@ -333,7 +337,7 @@ fun AddEditAccountDialog(
     var selectedColorHex by remember { mutableStateOf(account?.colorHex ?: "#0F766E") }
     var selectedIconName by remember { mutableStateOf(account?.iconName ?: "account_balance_wallet") }
 
-    val colors = listOf("#0F766E", "#E11475", "#F97316", "#2563EB", "#7C3AED", "#10B981", "#D97706", "#64748B")
+    val colors = listOf("#0F766E", "#DC2626", "#D97706", "#2563EB", "#7C3AED", "#16A34A", "#64748B")
     val icons = listOf("account_balance_wallet", "payments", "account_balance", "credit_card", "store", "savings")
 
     Dialog(onDismissRequest = onDismiss) {
@@ -341,8 +345,9 @@ fun AddEditAccountDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier
@@ -396,7 +401,7 @@ fun AddEditAccountDialog(
                         val isSelected = selectedType == type
                         Surface(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable { selectedType = type }
                                 .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -408,8 +413,7 @@ fun AddEditAccountDialog(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                softWrap = false
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -451,7 +455,7 @@ fun AddEditAccountDialog(
                                 .background(color)
                                 .clickable { selectedColorHex = hex }
                                 .border(
-                                    width = if (isSelected) 3.dp else 0.dp,
+                                    width = if (isSelected) 2.dp else 0.dp,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     shape = CircleShape
                                 )
@@ -478,7 +482,7 @@ fun AddEditAccountDialog(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { selectedIconName = iconName },
                             contentAlignment = Alignment.Center
@@ -510,10 +514,10 @@ fun AddEditAccountDialog(
                                 onSave(name.trim(), selectedType, "BDT", startBal, selectedColorHex, selectedIconName)
                             }
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.testTag("save_account_btn")
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.plusemon.hisab.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,12 +55,13 @@ fun HisabTopBar(
             .fillMaxWidth()
             .statusBarsPadding(),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -72,11 +73,11 @@ fun HisabTopBar(
                     .clickable { onProfileClick() }
                     .padding(4.dp)
             ) {
-                // User Avatar or Logo Badge
+                // User Avatar
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -85,11 +86,11 @@ fun HisabTopBar(
                         text = initials,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
                     Text(
@@ -109,16 +110,16 @@ fun HisabTopBar(
             // Right: Status & Action Controls Group
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Sync status badge
+                // Sync status pill (Pill shape intentional)
                 SyncStatusPill(status = settings.syncStatus, isBn = isBn)
 
                 // Privacy Eye Toggle
                 Surface(
                     onClick = onTogglePrivacy,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .size(36.dp)
                         .testTag("privacy_toggle_button")
@@ -136,8 +137,8 @@ fun HisabTopBar(
                 // Language Toggle (বাংলা / EN)
                 Surface(
                     onClick = onToggleLanguage,
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .height(36.dp)
                         .testTag("language_toggle_button")
@@ -149,7 +150,7 @@ fun HisabTopBar(
                         Icon(
                             imageVector = Icons.Outlined.Language,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -157,7 +158,7 @@ fun HisabTopBar(
                             text = if (isBn) "বাং" else "EN",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -184,16 +185,16 @@ fun SyncStatusPill(status: String, isBn: Boolean) {
         else -> Quadruple(
             Icons.Default.CloudDone,
             if (isBn) "সিঙ্কড" else "Synced",
-            Color(0xFF059669),
-            Color(0xFFD1FAE5)
+            Color(0xFF16A34A),
+            Color(0xFFF0FDF4)
         )
     }
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(bg)
-            .padding(horizontal = 7.dp, vertical = 3.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -202,11 +203,11 @@ fun SyncStatusPill(status: String, isBn: Boolean) {
                 tint = tint,
                 modifier = Modifier.size(12.dp)
             )
-            Spacer(modifier = Modifier.width(3.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = label,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 color = tint
             )
         }

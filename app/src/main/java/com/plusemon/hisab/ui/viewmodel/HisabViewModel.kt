@@ -624,7 +624,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 note = parsed.note
             )
             hisabRepository.insertTransaction(record)
-            _snackbarMessage.emit("হিসাব সফলভাবে যুক্ত হয়েছে (Entry saved)")
+            _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
         }
     }
 

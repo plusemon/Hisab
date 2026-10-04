@@ -187,7 +187,7 @@ class AuthRepository(
         val defaultAccounts = listOf(
             UserAccount(
                 userId = userId,
-                name = "নগদ টাকা (Cash)",
+                name = "Cash",
                 type = AccountType.CASH,
                 currencyCode = "BDT",
                 startingBalance = 0.0,
@@ -196,7 +196,7 @@ class AuthRepository(
             ),
             UserAccount(
                 userId = userId,
-                name = "বিকাশ (bKash)",
+                name = "bKash",
                 type = AccountType.MOBILE_WALLET,
                 currencyCode = "BDT",
                 startingBalance = 0.0,
@@ -205,7 +205,7 @@ class AuthRepository(
             ),
             UserAccount(
                 userId = userId,
-                name = "নগদ (Nagad)",
+                name = "Nagad",
                 type = AccountType.MOBILE_WALLET,
                 currencyCode = "BDT",
                 startingBalance = 0.0,
@@ -214,7 +214,7 @@ class AuthRepository(
             ),
             UserAccount(
                 userId = userId,
-                name = "ব্যাংক অ্যাকাউন্ট (Bank)",
+                name = "Bank Account",
                 type = AccountType.BANK,
                 currencyCode = "BDT",
                 startingBalance = 0.0,

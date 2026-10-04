@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -30,13 +28,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -224,7 +222,7 @@ fun AddEditTransactionScreen(
                         TransactionType.INCOME -> 1
                         TransactionType.TRANSFER -> 2
                     },
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .padding(bottom = 16.dp)
@@ -274,12 +272,13 @@ fun AddEditTransactionScreen(
                 }
             }
 
-            // Big Amount Input Card
+            // Big Amount Input Card (Flat card with border)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -323,7 +322,7 @@ fun AddEditTransactionScreen(
                             placeholder = { Text("0.00", fontSize = 32.sp, fontWeight = FontWeight.Bold) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
-                            textStyle = MaterialTheme.typography.headlineMedium.copy(
+                            textStyle = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = when (transactionType) {
                                     TransactionType.EXPENSE -> ExpenseRed
@@ -347,7 +346,7 @@ fun AddEditTransactionScreen(
                         listOf(50, 100, 500, 1000, 5000).forEach { quickVal ->
                             Surface(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .clickable {
                                         val currentVal = amountText.toDoubleOrNull() ?: 0.0
                                         val nextVal = currentVal + quickVal
@@ -411,7 +410,6 @@ fun AddEditTransactionScreen(
                 )
             } else {
                 // EXPENSE / INCOME SECTION
-                // Account Selector
                 Text(
                     text = Localization.getString(Localization.Key.ACCOUNT, isBn),
                     style = MaterialTheme.typography.titleSmall,
@@ -448,7 +446,8 @@ fun AddEditTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier
@@ -502,7 +501,7 @@ fun AddEditTransactionScreen(
                 ) {
                     Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(Localization.getString(Localization.Key.RECEIPT, isBn))
+                    Text(Localization.getString(Localization.Key.RECEIPT, isBn), fontWeight = FontWeight.Bold)
                 }
 
                 if (receiptUriStr != null) {
@@ -586,7 +585,7 @@ fun AddEditTransactionScreen(
                     .fillMaxWidth()
                     .height(52.dp)
                     .testTag("save_transaction_button"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when (transactionType) {
                         TransactionType.EXPENSE -> ExpenseRed
@@ -633,10 +632,10 @@ fun AccountSelectorChips(
                     .clickable { onSelect(acc.id) }
                     .border(
                         width = if (isSelected) 2.dp else 1.dp,
-                        color = if (isSelected) accColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = if (isSelected) accColor else MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(12.dp)
                     ),
-                color = if (isSelected) accColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+                color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -658,8 +657,7 @@ fun AccountSelectorChips(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -695,11 +693,11 @@ fun CategoryGridSelector(
                             .clickable { onSelect(cat.id) }
                             .border(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) catColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                color = if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .testTag("category_chip_${cat.id}"),
-                        color = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
                     ) {
                         Column(
                             modifier = Modifier
@@ -720,13 +718,11 @@ fun CategoryGridSelector(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                softWrap = false,
                                 fontSize = 11.sp
                             )
                         }
                     }
                 }
-                // Fill empty slots if last row has less than 3
                 repeat(3 - rowCategories.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }

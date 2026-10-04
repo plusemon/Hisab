@@ -1,6 +1,7 @@
 package com.plusemon.hisab.ui.screens.transactions
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -53,6 +55,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.theme.TransferBlue
@@ -139,7 +142,7 @@ fun TransactionsScreen(
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -226,18 +229,20 @@ fun TransactionsScreen(
                 }
             }
 
-            // Transaction List Grouped by Date
+            // Transaction List or Empty State (Rule 7)
             if (filteredTransactions.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    EmptyStateView(
+                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                        title = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
+                        description = if (isBn) "পছন্দের ফিল্টারে বা সময়ে কোনো লেনদেন পাওয়া যায়নি।" else "No transactions match your current search or filter criteria.",
+                        actionLabel = if (isBn) "+ নতুন হিসাব যোগ করুন" else "+ Add Transaction",
+                        onActionClick = onNavigateToAddTransaction
                     )
                 }
             } else {
