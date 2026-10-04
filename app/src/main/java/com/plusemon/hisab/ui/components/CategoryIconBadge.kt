@@ -18,14 +18,14 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,7 +41,7 @@ fun getIconByName(iconName: String): ImageVector {
         "restaurant", "food" -> Icons.Default.Restaurant
         "shopping_cart", "grocery" -> Icons.Default.ShoppingCart
         "directions_bus", "transport" -> Icons.Default.DirectionsBus
-        "receipt_long", "bills" -> Icons.Default.ReceiptLong
+        "receipt_long", "bills" -> Icons.AutoMirrored.Filled.ReceiptLong
         "shopping_bag", "shopping" -> Icons.Default.ShoppingBag
         "medical_services", "health" -> Icons.Default.MedicalServices
         "movie", "entertainment" -> Icons.Default.Movie
@@ -49,7 +49,7 @@ fun getIconByName(iconName: String): ImageVector {
         "payments", "salary", "cash" -> Icons.Default.Payments
         "store", "business" -> Icons.Default.Store
         "laptop", "freelance" -> Icons.Default.Laptop
-        "trending_up", "investment" -> Icons.Default.TrendingUp
+        "trending_up", "investment" -> Icons.AutoMirrored.Filled.TrendingUp
         "card_giftcard", "gift" -> Icons.Default.CardGiftcard
         "account_balance", "bank" -> Icons.Default.AccountBalance
         "account_balance_wallet", "wallet", "bkash", "nagad" -> Icons.Default.AccountBalanceWallet

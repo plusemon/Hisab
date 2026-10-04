@@ -44,9 +44,7 @@ class AuthRepository(
     init {
         val savedUserId = prefs.getString("current_user_id", null)
         if (!savedUserId.isNullOrEmpty()) {
-            kotlinx.coroutines.GlobalScope.let {
-                // Read synchronous / cached user for immediate load
-            }
+            // Read synchronous / cached user for immediate load
         }
     }
 

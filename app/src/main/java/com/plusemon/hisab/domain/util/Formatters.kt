@@ -49,7 +49,7 @@ object Formatters {
     fun formatDate(timestamp: Long, isBangla: Boolean = false): String {
         val date = Date(timestamp)
         val formatPattern = if (isBangla) "dd MMM yyyy" else "dd MMM yyyy"
-        val locale = if (isBangla) Locale("bn", "BD") else Locale.ENGLISH
+        val locale = if (isBangla) Locale.forLanguageTag("bn-BD") else Locale.ENGLISH
         val sdf = SimpleDateFormat(formatPattern, locale)
         val formatted = sdf.format(date)
         return if (isBangla) toBanglaDigits(formatted) else formatted
@@ -57,7 +57,7 @@ object Formatters {
 
     fun formatTime(timestamp: Long, isBangla: Boolean = false): String {
         val date = Date(timestamp)
-        val locale = if (isBangla) Locale("bn", "BD") else Locale.ENGLISH
+        val locale = if (isBangla) Locale.forLanguageTag("bn-BD") else Locale.ENGLISH
         val sdf = SimpleDateFormat("hh:mm a", locale)
         val formatted = sdf.format(date)
         return if (isBangla) toBanglaDigits(formatted) else formatted
@@ -84,7 +84,7 @@ object Formatters {
                 cal.set(Calendar.YEAR, year)
                 cal.set(Calendar.MONTH, month - 1)
                 cal.set(Calendar.DAY_OF_MONTH, 1)
-                val locale = if (isBangla) Locale("bn", "BD") else Locale.ENGLISH
+                val locale = if (isBangla) Locale.forLanguageTag("bn-BD") else Locale.ENGLISH
                 val sdf = SimpleDateFormat("MMMM yyyy", locale)
                 val formatted = sdf.format(cal.time)
                 return if (isBangla) toBanglaDigits(formatted) else formatted
