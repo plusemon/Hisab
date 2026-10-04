@@ -443,7 +443,7 @@ private suspend fun signInFirebaseWithGoogleToken(context: Context, idToken: Str
     return suspendCancellableCoroutine { continuation ->
         try {
             if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
-                continuation.resume(null, onCancellation = null)
+                continuation.resume(null)
                 return@suspendCancellableCoroutine
             }
             val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
@@ -452,19 +452,19 @@ private suspend fun signInFirebaseWithGoogleToken(context: Context, idToken: Str
                 .addOnSuccessListener { result ->
                     val uid = result.user?.uid
                     if (continuation.isActive) {
-                        continuation.resume(uid, onCancellation = null)
+                        continuation.resume(uid)
                     }
                 }
                 .addOnFailureListener { e ->
                     Log.w("GoogleSignIn", "Firebase Auth sign-in failed: ${e.message}")
                     if (continuation.isActive) {
-                        continuation.resume(null, onCancellation = null)
+                        continuation.resume(null)
                     }
                 }
         } catch (e: Exception) {
             Log.w("GoogleSignIn", "Firebase Auth exception: ${e.message}")
             if (continuation.isActive) {
-                continuation.resume(null, onCancellation = null)
+                continuation.resume(null)
             }
         }
     }

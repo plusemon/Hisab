@@ -40,6 +40,16 @@ jobs:
       - name: Print SHA-1 fingerprint
         run: keytool -list -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android | grep "SHA1:"
 
+      - name: Decode release keystore
+        run: |
+          SECRET_KEYSTORE="${{ secrets.KEYSTORE_BASE64 }}"
+          if [ -n "$SECRET_KEYSTORE" ]; then
+            echo -n "$SECRET_KEYSTORE" | base64 -d > hisab-release.keystore 2>/dev/null || echo -n "$SECRET_KEYSTORE" | base64 --decode > hisab-release.keystore 2>/dev/null || true
+          fi
+
+      - name: Print release SHA-1 fingerprint
+        run: keytool -list -v -keystore hisab-release.keystore -alias hisab -storepass "${{ secrets.STORE_PASSWORD }}" -keypass "${{ secrets.KEY_PASSWORD }}" | grep "SHA1:"
+
       - name: Write google-services.json
         run: |
           mkdir -p app
@@ -56,6 +66,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build optimized release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/hisab-release.keystore
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: hisab
         run: |
           VERSION_TAG="${{ steps.version.outputs.version }}"
           VERSION_NO_V="${VERSION_TAG#v}"

@@ -20,9 +20,11 @@ android {
     versionName = project.findProperty("versionName") as String? ?: "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
 
+  androidResources {
     // Strip unneeded language strings from libraries, keeping only supported locales
-    resourceConfigurations += listOf("en", "bn")
+    localeFilters += listOf("en", "bn")
   }
 
   signingConfigs {
