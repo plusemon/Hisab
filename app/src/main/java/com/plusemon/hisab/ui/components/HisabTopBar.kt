@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -105,39 +106,46 @@ fun HisabTopBar(
                 }
             }
 
-            // Right: Sync Badge, Privacy Eye, Language Toggle
+            // Right: Status & Action Controls Group
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Sync indicator pill
+                // Sync status badge
                 SyncStatusPill(status = settings.syncStatus, isBn = isBn)
 
                 // Privacy Eye Toggle
-                IconButton(
+                Surface(
                     onClick = onTogglePrivacy,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .testTag("privacy_toggle_button")
                 ) {
-                    Icon(
-                        imageVector = if (settings.hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = "Toggle Balance Visibility",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (settings.hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle Balance Visibility",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 // Language Toggle (বাংলা / EN)
-                Box(
+                Surface(
+                    onClick = onToggleLanguage,
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .clickable { onToggleLanguage() }
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .height(36.dp)
                         .testTag("language_toggle_button")
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.Language,
                             contentDescription = null,

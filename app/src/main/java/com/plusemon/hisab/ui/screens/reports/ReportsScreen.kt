@@ -138,7 +138,7 @@ fun ReportsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 80.dp)
+                .padding(bottom = 100.dp)
         ) {
             // Period Selector Chips
             LazyRow(
