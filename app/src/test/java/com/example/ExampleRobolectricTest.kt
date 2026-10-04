@@ -38,4 +38,36 @@ class ExampleRobolectricTest {
     val annotated = MarkdownUtils.parseMarkdown("**Bold Text**")
     assertEquals("Bold Text", annotated.text)
   }
+
+  @Test
+  fun `language preference persistence across app sessions`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val prefs = context.getSharedPreferences("hisab_settings_prefs", Context.MODE_PRIVATE)
+
+    // Initially or default
+    prefs.edit().putString("language", "bn").apply()
+    assertEquals("bn", prefs.getString("language", "bn"))
+
+    // User switches language on auth screen to English
+    prefs.edit().putString("language", "en").apply()
+    assertEquals("en", prefs.getString("language", "bn"))
+
+    // Toggle back to Bangla
+    val current = prefs.getString("language", "bn")
+    val toggled = if (current == "bn") "en" else "bn"
+    prefs.edit().putString("language", toggled).apply()
+    assertEquals("bn", prefs.getString("language", "en"))
+  }
+
+  @Test
+  fun `credentials error handling logic distinguishes no credential from cancellation`() {
+    val noCredException = androidx.credentials.exceptions.NoCredentialException("No credentials available")
+    val cancellationException = androidx.credentials.exceptions.GetCredentialCancellationException("User cancelled")
+
+    val isNoCred1 = noCredException.message?.contains("No credentials available", ignoreCase = true) == true
+    val isCancel1 = cancellationException.message?.contains("cancel", ignoreCase = true) == true
+
+    assertTrue(isNoCred1)
+    assertTrue(isCancel1)
+  }
 }

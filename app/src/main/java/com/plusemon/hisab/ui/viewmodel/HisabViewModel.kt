@@ -105,7 +105,15 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading = _isAuthLoading.asStateFlow()
 
-    private val _settings = MutableStateFlow(UserSettings(userId = ""))
+    private val appPrefs = application.getSharedPreferences("hisab_settings_prefs", android.content.Context.MODE_PRIVATE)
+
+    private val _settings = MutableStateFlow(
+        UserSettings(
+            userId = "",
+            language = appPrefs.getString("language", "bn") ?: "bn",
+            numeralSystem = appPrefs.getString("numeral_system", "bn") ?: "bn"
+        )
+    )
     val settings = _settings.asStateFlow()
 
     private val _isAppLocked = MutableStateFlow(false)
@@ -190,6 +198,10 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun resetUserData() {
+        val savedLang = appPrefs.getString("language", "bn") ?: "bn"
+        val savedNumeral = appPrefs.getString("numeral_system", "bn") ?: "bn"
+        _settings.value = UserSettings(userId = "", language = savedLang, numeralSystem = savedNumeral)
+        _isAppLocked.value = false
         _accountsWithBalances.value = emptyList()
         _totalBalance.value = 0.0
         _transactions.value = emptyList()
@@ -213,8 +225,17 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val settingsJob = viewModelScope.launch {
             hisabRepository.getUserSettings(userId).collect { userSettings ->
                 if (userSettings != null) {
-                    _settings.value = userSettings
-                    if (userSettings.pinEnabled && userSettings.pinCode.isNotBlank()) {
+                    val savedLang = appPrefs.getString("language", userSettings.language) ?: userSettings.language
+                    val savedNumeral = appPrefs.getString("numeral_system", userSettings.numeralSystem) ?: userSettings.numeralSystem
+                    val activeSettings = if (userSettings.language != savedLang || userSettings.numeralSystem != savedNumeral) {
+                        val synced = userSettings.copy(language = savedLang, numeralSystem = savedNumeral)
+                        hisabRepository.updateSettings(synced)
+                        synced
+                    } else {
+                        userSettings
+                    }
+                    _settings.value = activeSettings
+                    if (activeSettings.pinEnabled && activeSettings.pinCode.isNotBlank()) {
                         _isAppLocked.value = true
                     }
                 }
@@ -510,12 +531,13 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        if (isCancellation) {
+            _authError.value = null
+            return
+        }
+
         val isBn = _settings.value.language == "bn"
         val errorMessage = when {
-            // User cancelled
-            isCancellation -> {
-                if (isBn) "গুগল সাইন-ইন বাতিল করা হয়েছে।" else "Google Sign-In was cancelled by the user."
-            }
             // No credentials on device (e.g. fresh emulator or device without Google accounts)
             isNoCredential -> {
                 if (isBn) {
@@ -558,28 +580,6 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _authError.value = errorMessage
-    }
-
-    fun signInOrSignUpDemoUser() {
-        viewModelScope.launch {
-            _isAuthLoading.value = true
-            _authError.value = null
-            val demoEmail = "demo@hisab.app"
-            val demoPass = "hisab123"
-            val isBn = _settings.value.language == "bn"
-            val demoName = if (isBn) "ডেমো ব্যবহারকারী" else "Demo User"
-
-            val signInResult = authRepository.signInWithEmail(demoEmail, demoPass)
-            if (signInResult is AuthResult.Success) {
-                _isAuthLoading.value = false
-            } else {
-                val signUpResult = authRepository.signUpWithEmail(demoName, demoEmail, demoPass)
-                _isAuthLoading.value = false
-                if (signUpResult is AuthResult.Error) {
-                    _authError.value = signUpResult.message
-                }
-            }
-        }
     }
 
     private fun findApiException(e: Throwable?): com.google.android.gms.common.api.ApiException? {
@@ -1135,15 +1135,25 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleLanguage() {
         val curr = _settings.value
         val newLang = if (curr.language == "bn") "en" else "bn"
-        val updated = curr.copy(language = newLang)
-        updateSettings(updated)
+        appPrefs.edit().putString("language", newLang).apply()
+        val user = currentUser.value
+        val updated = curr.copy(language = newLang, userId = user?.id ?: "")
+        _settings.value = updated
+        viewModelScope.launch {
+            hisabRepository.updateSettings(updated)
+        }
     }
 
     fun toggleNumeralSystem() {
         val curr = _settings.value
         val newNumeral = if (curr.numeralSystem == "bn") "en" else "bn"
-        val updated = curr.copy(numeralSystem = newNumeral)
-        updateSettings(updated)
+        appPrefs.edit().putString("numeral_system", newNumeral).apply()
+        val user = currentUser.value
+        val updated = curr.copy(numeralSystem = newNumeral, userId = user?.id ?: "")
+        _settings.value = updated
+        viewModelScope.launch {
+            hisabRepository.updateSettings(updated)
+        }
     }
 
     fun updateCurrency(currencyCode: String, symbol: String) {
@@ -1181,9 +1191,15 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateSettings(updated: UserSettings) {
+        appPrefs.edit()
+            .putString("language", updated.language)
+            .putString("numeral_system", updated.numeralSystem)
+            .apply()
         _settings.value = updated
+        val user = currentUser.value
+        val target = if (user != null) updated.copy(userId = user.id) else updated
         viewModelScope.launch {
-            hisabRepository.updateSettings(updated)
+            hisabRepository.updateSettings(target)
         }
     }
 

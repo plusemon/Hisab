@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,9 +32,9 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -74,6 +75,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetCredentialResponse
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.plusemon.hisab.domain.util.Localization
@@ -164,113 +168,205 @@ fun AuthScreen(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .statusBarsPadding()
         ) {
-            // App Branding Hero
-            Box(
+            // Language Switcher in top corner (reusing Settings language toggle logic)
+            Row(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.End
             ) {
-                Icon(
-                    imageVector = Icons.Default.AccountBalanceWallet,
-                    contentDescription = "Hisab Logo",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(44.dp)
-                )
+                Surface(
+                    onClick = { viewModel.toggleLanguage() },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .height(36.dp)
+                        .testTag("auth_language_toggle_button")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Language,
+                            contentDescription = "Switch Language",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "বাংলা" else "EN",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = Localization.getString(Localization.Key.APP_NAME, isBn),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Text(
-                text = Localization.getString(Localization.Key.TAGLINE, isBn),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
-            )
-
-            // Primary Google Sign In Action (Prominent)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                shape = RoundedCornerShape(16.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 52.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Column(
+                // App Branding Hero
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                try {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = "Hisab Logo",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = Localization.getString(Localization.Key.APP_NAME, isBn),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = Localization.getString(Localization.Key.TAGLINE, isBn),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
+                )
+
+                // Primary Google Sign In Action (Prominent)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                coroutineScope.launch {
                                     val activity = context as? Activity
-                                        ?: throw IllegalStateException("Context must be an Activity")
+                                    if (activity == null) {
+                                        viewModel.handleGoogleSignInFailure(IllegalStateException("Context must be an Activity"))
+                                        return@launch
+                                    }
 
                                     val credentialManager = CredentialManager.create(context)
                                     val webClientId = "990037686252-4ma0sd2m5hmihe6802aqm4qo0vfpauue.apps.googleusercontent.com"
 
-                                    val googleIdOption = GetGoogleIdOption.Builder()
-                                        .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(webClientId)
-                                        .setAutoSelectEnabled(false)
-                                        .build()
+                                    suspend fun fetchGoogleCredential(filterByAuthorized: Boolean): GetCredentialResponse {
+                                        val googleIdOption = GetGoogleIdOption.Builder()
+                                            .setFilterByAuthorizedAccounts(filterByAuthorized)
+                                            .setServerClientId(webClientId)
+                                            .setAutoSelectEnabled(filterByAuthorized)
+                                            .build()
 
-                                    val request = GetCredentialRequest.Builder()
-                                        .addCredentialOption(googleIdOption)
-                                        .build()
+                                        val request = GetCredentialRequest.Builder()
+                                            .addCredentialOption(googleIdOption)
+                                            .build()
 
-                                    val result = credentialManager.getCredential(
-                                        context = activity,
-                                        request = request
-                                    )
-
-                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-                                    val idToken = googleIdTokenCredential.idToken
-                                    val userEmail = googleIdTokenCredential.id
-                                    val userDisplayName = googleIdTokenCredential.displayName
-                                        ?: googleIdTokenCredential.givenName
-                                        ?: userEmail.substringBefore("@")
-                                    val userPhotoUrl = googleIdTokenCredential.profilePictureUri?.toString()
-                                    val googleId = googleIdTokenCredential.id
-
-                                    // Optionally authenticate with Firebase Auth
-                                    val firebaseUid = signInFirebaseWithGoogleToken(context, idToken)
-
-                                    viewModel.signInWithGoogle(
-                                        uid = firebaseUid ?: googleId,
-                                        email = userEmail,
-                                        name = userDisplayName,
-                                        photoUrl = userPhotoUrl
-                                    )
-                                } catch (e: Throwable) {
-                                    val isNoCredential = e is androidx.credentials.exceptions.NoCredentialException ||
-                                            e.message?.contains("No credentials available", ignoreCase = true) == true ||
-                                            e.cause?.message?.contains("No credentials available", ignoreCase = true) == true
-                                    if (isNoCredential) {
-                                        showNoAccountDialog = true
+                                        return credentialManager.getCredential(
+                                            context = activity,
+                                            request = request
+                                        )
                                     }
-                                    viewModel.handleGoogleSignInFailure(e)
+
+                                    fun isNoCredential(t: Throwable): Boolean {
+                                        var curr: Throwable? = t
+                                        while (curr != null) {
+                                            if (curr is NoCredentialException) return true
+                                            val msg = curr.message ?: ""
+                                            if (msg.contains("No credentials available", ignoreCase = true) ||
+                                                msg.contains("NoCredentialException", ignoreCase = true) ||
+                                                msg.contains("No credentials found", ignoreCase = true)
+                                            ) {
+                                                return true
+                                            }
+                                            curr = curr.cause
+                                        }
+                                        return false
+                                    }
+
+                                    try {
+                                        var result: GetCredentialResponse? = null
+                                        var firstAttemptNoCredential = false
+
+                                        // 1. First attempt: filterByAuthorizedAccounts = true for fast/silent sign-in on returning users
+                                        try {
+                                            result = fetchGoogleCredential(filterByAuthorized = true)
+                                        } catch (e: Throwable) {
+                                            if (isNoCredential(e)) {
+                                                Log.d("GoogleSignIn", "No previously authorized accounts. Retrying once with filterByAuthorizedAccounts = false for full account picker.")
+                                                firstAttemptNoCredential = true
+                                            } else {
+                                                throw e
+                                            }
+                                        }
+
+                                        // 2. If first attempt throws NoCredentialException, automatically retry ONCE with filterByAuthorizedAccounts = false
+                                        if (result == null && firstAttemptNoCredential) {
+                                            result = fetchGoogleCredential(filterByAuthorized = false)
+                                        }
+
+                                        val finalResult = result
+                                            ?: throw NoCredentialException("No credentials available")
+
+                                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(finalResult.credential.data)
+                                        val idToken = googleIdTokenCredential.idToken
+                                        val userEmail = googleIdTokenCredential.id
+                                        val userDisplayName = googleIdTokenCredential.displayName
+                                            ?: googleIdTokenCredential.givenName
+                                            ?: userEmail.substringBefore("@")
+                                        val userPhotoUrl = googleIdTokenCredential.profilePictureUri?.toString()
+                                        val googleId = googleIdTokenCredential.id
+
+                                        // Optionally authenticate with Firebase Auth
+                                        val firebaseUid = signInFirebaseWithGoogleToken(context, idToken)
+
+                                        viewModel.signInWithGoogle(
+                                            uid = firebaseUid ?: googleId,
+                                            email = userEmail,
+                                            name = userDisplayName,
+                                            photoUrl = userPhotoUrl
+                                        )
+                                    } catch (e: Throwable) {
+                                        val isCancellation = e is GetCredentialCancellationException ||
+                                                e.message?.contains("cancel", ignoreCase = true) == true
+
+                                        if (isCancellation) {
+                                            Log.i("GoogleSignIn", "Google Sign-In cancelled/dismissed by user.")
+                                        } else if (isNoCredential(e)) {
+                                            // 3. Only show "No Google Account on Device" if BOTH attempts fail (truly no account on device)
+                                            Log.w("GoogleSignIn", "Both attempts failed with NoCredentialException: No Google account found on device.")
+                                            showNoAccountDialog = true
+                                            viewModel.handleGoogleSignInFailure(e)
+                                        } else {
+                                            Log.e("GoogleSignIn", "Google Sign-In error: ${e.message}", e)
+                                            viewModel.handleGoogleSignInFailure(e)
+                                        }
+                                    }
                                 }
-                            }
-                        },
+                            },
                         enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -503,32 +599,11 @@ fun AuthScreen(
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    TextButton(
-                        onClick = {
-                            viewModel.signInOrSignUpDemoUser()
-                        },
-                        enabled = !isLoading,
-                        modifier = Modifier.testTag("auth_demo_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isBn) "ডেমো অ্যাকাউন্ট দিয়ে দেখুন" else "Explore with Demo Account",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             }
         }
     }
+}
 }
 
 private suspend fun signInFirebaseWithGoogleToken(context: Context, idToken: String): String? {

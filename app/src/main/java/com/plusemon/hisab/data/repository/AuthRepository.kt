@@ -249,10 +249,14 @@ class AuthRepository(
         categoryDao.insertCategories(defaultCategories)
 
         // 3. Seed Default User Settings
+        val settingsPrefs = context.getSharedPreferences("hisab_settings_prefs", Context.MODE_PRIVATE)
+        val preferredLang = settingsPrefs.getString("language", "bn") ?: "bn"
+        val preferredNumeral = settingsPrefs.getString("numeral_system", if (preferredLang == "bn") "bn" else "en") ?: "bn"
+
         val settings = UserSettings(
             userId = userId,
-            language = "bn",
-            numeralSystem = "bn",
+            language = preferredLang,
+            numeralSystem = preferredNumeral,
             defaultCurrency = "BDT",
             currencySymbol = "৳"
         )
