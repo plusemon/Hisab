@@ -2,11 +2,12 @@ package com.plusemon.hisab.data.repository
 
 import android.util.Log
 import com.plusemon.hisab.data.model.UpdateInfo
+import com.plusemon.hisab.domain.util.MarkdownUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
+import org.json.JSONArray
 import java.util.concurrent.TimeUnit
 
 class UpdateRepository {
@@ -19,7 +20,7 @@ class UpdateRepository {
     suspend fun fetchLatestRelease(): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
-                .url("https://api.github.com/repos/plusemon/hisab/releases/latest")
+                .url("https://api.github.com/repos/plusemon/hisab/releases")
                 .header("User-Agent", "Hisab-App")
                 .header("Accept", "application/vnd.github.v3+json")
                 .get()
@@ -28,13 +29,16 @@ class UpdateRepository {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val bodyString = response.body?.string() ?: return@withContext null
-                val json = JSONObject(bodyString)
+                val jsonArray = JSONArray(bodyString)
+                if (jsonArray.length() == 0) return@withContext null
+                val json = jsonArray.getJSONObject(0)
 
                 val tagName = json.optString("tag_name", "")
                 if (tagName.isBlank()) return@withContext null
                 val version = tagName.trim().removePrefix("v").removePrefix("V")
 
-                val releaseNotes = json.optString("body", "")
+                val rawReleaseNotes = json.optString("body", "")
+                val releaseNotes = MarkdownUtils.deduplicateReleaseNotes(rawReleaseNotes)
 
                 val assets = json.optJSONArray("assets") ?: return@withContext null
                 var downloadUrl: String? = null

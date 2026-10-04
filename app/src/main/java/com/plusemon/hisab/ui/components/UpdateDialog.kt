@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.data.model.UpdateInfo
+import com.plusemon.hisab.domain.util.MarkdownUtils
 import com.plusemon.hisab.ui.viewmodel.UpdateUiState
 
 @Composable
@@ -126,7 +127,7 @@ fun UpdateDialog(
                         if (info.releaseNotes.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = info.releaseNotes,
+                                text = MarkdownUtils.parseMarkdown(info.releaseNotes),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

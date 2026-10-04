@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.plusemon.hisab.data.model.UpdateInfo
+import com.plusemon.hisab.domain.util.MarkdownUtils
 
 @Composable
 fun UpdateCard(
@@ -70,7 +71,7 @@ fun UpdateCard(
             if (updateInfo.releaseNotes.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = updateInfo.releaseNotes,
+                    text = MarkdownUtils.parseMarkdown(updateInfo.releaseNotes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     maxLines = 2
