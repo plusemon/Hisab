@@ -32,7 +32,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -183,14 +183,14 @@ fun AuthScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Divider(modifier = Modifier.weight(1f))
+                        HorizontalDivider(modifier = Modifier.weight(1f))
                         Text(
                             text = if (isBn) " অথবা " else " or ",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
-                        Divider(modifier = Modifier.weight(1f))
+                        HorizontalDivider(modifier = Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

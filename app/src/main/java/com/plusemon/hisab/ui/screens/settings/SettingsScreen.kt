@@ -22,14 +22,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
@@ -41,7 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -194,7 +194,7 @@ fun SettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -275,7 +275,7 @@ fun SettingsScreen(
                         value = if (isBn) "বাংলা" else "English",
                         onClick = { viewModel.toggleLanguage() }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRowItem(
                         icon = Icons.Default.Language,
                         title = Localization.getString(Localization.Key.NUMERAL_SYSTEM, isBn),
@@ -332,7 +332,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     // Recurring Transactions
                     SettingsRowItem(
@@ -370,7 +370,7 @@ fun SettingsScreen(
                             Toast.makeText(context, if (isBn) "সারাংশ কপি করা হয়েছে" else "Summary copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRowItem(
                         icon = Icons.Default.FileDownload,
                         title = Localization.getString(Localization.Key.EXPORT_CSV, isBn),
@@ -381,7 +381,7 @@ fun SettingsScreen(
                             Toast.makeText(context, if (isBn) "CSV ডাটা কপি করা হয়েছে" else "CSV data copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRowItem(
                         icon = Icons.Default.CloudUpload,
                         title = Localization.getString(Localization.Key.IMPORT_CSV, isBn),
@@ -423,16 +423,16 @@ fun SettingsScreen(
                         titleColor = ExpenseRed,
                         onClick = { showClearDataDialog = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRowItem(
                         icon = Icons.Default.DeleteForever,
                         title = Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn),
                         titleColor = ExpenseRed,
                         onClick = { showDeleteAccountDialog = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRowItem(
-                        icon = Icons.Default.ExitToApp,
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
                         title = Localization.getString(Localization.Key.SIGN_OUT, isBn),
                         titleColor = ExpenseRed,
                         onClick = { viewModel.signOut() }
