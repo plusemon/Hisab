@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +32,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -49,7 +57,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -66,8 +73,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -81,7 +91,9 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.plusemon.hisab.domain.util.AuthDiagnostics
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 import kotlinx.coroutines.launch
@@ -94,6 +106,7 @@ fun AuthScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
 
     val settings by viewModel.settings.collectAsState()
@@ -106,61 +119,144 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var showNoAccountDialog by remember { mutableStateOf(false) }
+    var showDiagnosticDialog by remember { mutableStateOf(false) }
 
-    if (showNoAccountDialog) {
+    val currentAppSha1 = remember { AuthDiagnostics.getCurrentAppSha1(context) }
+    val isSha1Registered = remember { AuthDiagnostics.isSha1RegisteredInFirebase(context) }
+
+    if (showDiagnosticDialog) {
         AlertDialog(
-            onDismissRequest = { showNoAccountDialog = false },
+            onDismissRequest = { showDiagnosticDialog = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.AccountCircle,
+                    imageVector = if (!isSha1Registered) Icons.Default.Key else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (!isSha1Registered) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             },
             title = {
                 Text(
-                    text = if (isBn) "গুগল অ্যাকাউন্ট পাওয়া যায়নি" else "No Google Account on Device",
+                    text = if (isBn) {
+                        if (!isSha1Registered) "গুগল সাইন ইন ও SHA-1 কনফিগারেশন" else "গুগল সাইন ইন সহায়তা"
+                    } else {
+                        if (!isSha1Registered) "Google Sign-In & SHA-1 Setup" else "Google Sign-In Help"
+                    },
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Text(
-                    text = if (isBn) "এই ডিভাইসে কোনো গুগল অ্যাকাউন্ট সাইন ইন করা নেই। আপনি ডিভাইসের সেটিংসে গিয়ে অ্যাকাউন্ট যোগ করতে পারেন, অথবা নিচে ইমেইল ও পাসওয়ার্ড দিয়ে সহজে প্রবেশ/নিবন্ধন করতে পারেন।"
-                    else "No Google account is signed in on this device or emulator. You can add a Google account in device Settings, or sign in / register using Email & Password below."
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (!isSha1Registered) {
+                        Text(
+                            text = if (isBn)
+                                "আপনার ডিভাইসে গুগল অ্যাকাউন্ট থাকা সত্ত্বেও সাইন ইন হচ্ছে না, কারণ বর্তমান অ্যাপটির সাইনিং SHA-1 ফিঙ্গারপ্রিন্ট ফায়ারবেসে (Firebase Console) যুক্ত করা নেই। নিরাপত্তা নিশ্চিত করার জন্য গুগল প্লে সার্ভিসেস এই অনুরোধটি প্রত্যাখ্যান করেছে।"
+                            else
+                                "Google Sign-In failed although accounts exist on your device because this app's signing SHA-1 certificate is not registered in Firebase Console. Google Play Services enforces this security check.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        // SHA-1 Display Card with copy
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = if (isBn) "বর্তমান অ্যাপের SHA-1 ফিঙ্গারপ্রিন্ট:" else "Current App SHA-1 Fingerprint:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = currentAppSha1,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(currentAppSha1))
+                                        Toast.makeText(
+                                            context,
+                                            if (isBn) "SHA-1 ক্লিপবোর্ডে কপি করা হয়েছে!" else "SHA-1 copied to clipboard!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isBn) "SHA-1 কপি করুন" else "Copy SHA-1",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = if (isBn)
+                                "সমাধান:\n১. Firebase Console > Project Settings এ যান\n২. 'com.plusemon.hisab' অ্যাপের নিচে 'Add fingerprint' এ এই SHA-1 যুক্ত করুন।\n৩. অথবা সরাসরি নিচে ইমেইল ও পাসওয়ার্ড দিয়ে লগইন বা নতুন অ্যাকাউন্ট খুলুন।"
+                            else
+                                "How to fix:\n1. Open Firebase Console > Project Settings\n2. Under 'com.plusemon.hisab', click 'Add fingerprint' and paste this SHA-1.\n3. Alternatively, sign in or register with Email & Password below.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = if (isBn)
+                                "গুগল সাইন ইন সম্পন্ন করা সম্ভব হয়নি। অনুগ্রহ করে নিশ্চিত করুন যে আপনার ডিভাইসে ইন্টারনেট সংযোগ সক্রিয় রয়েছে, গুগল প্লে সার্ভিসেস আপডেট করা আছে, অথবা ডিভাইসের সেটিংস থেকে অ্যাকাউন্টটি যাচাই করুন।"
+                            else
+                                "Google Sign-In could not complete. Please ensure your device has an active internet connection, Google Play Services is updated, or verify accounts in device settings.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        showNoAccountDialog = false
-                        try {
-                            val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
-                                putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            try {
-                                context.startActivity(Intent(Settings.ACTION_SYNC_SETTINGS))
-                            } catch (e2: Exception) {
-                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
-                            }
-                        }
+                        showDiagnosticDialog = false
                     },
-                    modifier = Modifier.testTag("no_account_dialog_add")
+                    modifier = Modifier.testTag("auth_dialog_use_email")
                 ) {
-                    Text(if (isBn) "সেটিংস থেকে যোগ করুন" else "Add in Settings")
+                    Text(if (isBn) "ইমেইল দিয়ে ব্যবহার করুন" else "Use Email Sign-in")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showNoAccountDialog = false
+                        showDiagnosticDialog = false
+                        try {
+                            val intent = Intent(Settings.ACTION_SYNC_SETTINGS)
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            try {
+                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                            } catch (e2: Exception) {
+                                // Ignore
+                            }
+                        }
                     },
-                    modifier = Modifier.testTag("no_account_dialog_email")
+                    modifier = Modifier.testTag("auth_dialog_check_settings")
                 ) {
-                    Text(if (isBn) "ইমেইল দিয়ে ব্যবহার করুন" else "Use Email Sign-in")
+                    Text(if (isBn) "ডিভাইস সেটিংস" else "Device Settings")
                 }
             }
         )
@@ -275,31 +371,13 @@ fun AuthScreen(
                                     val credentialManager = CredentialManager.create(context)
                                     val webClientId = "990037686252-4ma0sd2m5hmihe6802aqm4qo0vfpauue.apps.googleusercontent.com"
 
-                                    suspend fun fetchGoogleCredential(filterByAuthorized: Boolean): GetCredentialResponse {
-                                        val googleIdOption = GetGoogleIdOption.Builder()
-                                            .setFilterByAuthorizedAccounts(filterByAuthorized)
-                                            .setServerClientId(webClientId)
-                                            .setAutoSelectEnabled(filterByAuthorized)
-                                            .build()
-
-                                        val request = GetCredentialRequest.Builder()
-                                            .addCredentialOption(googleIdOption)
-                                            .build()
-
-                                        return credentialManager.getCredential(
-                                            context = activity,
-                                            request = request
-                                        )
-                                    }
-
-                                    fun isNoCredential(t: Throwable): Boolean {
+                                    fun isCancellation(t: Throwable): Boolean {
                                         var curr: Throwable? = t
                                         while (curr != null) {
-                                            if (curr is NoCredentialException) return true
+                                            if (curr is GetCredentialCancellationException) return true
                                             val msg = curr.message ?: ""
-                                            if (msg.contains("No credentials available", ignoreCase = true) ||
-                                                msg.contains("NoCredentialException", ignoreCase = true) ||
-                                                msg.contains("No credentials found", ignoreCase = true)
+                                            if (msg.contains("cancel", ignoreCase = true) ||
+                                                msg.contains("user cancelled", ignoreCase = true)
                                             ) {
                                                 return true
                                             }
@@ -310,27 +388,45 @@ fun AuthScreen(
 
                                     try {
                                         var result: GetCredentialResponse? = null
-                                        var firstAttemptNoCredential = false
 
-                                        // 1. First attempt: filterByAuthorizedAccounts = true for fast/silent sign-in on returning users
+                                        // 1. Primary Attempt: Use GetSignInWithGoogleOption (the Google recommended Button flow
+                                        // which opens the full Google Account chooser dialog listing all device accounts)
                                         try {
-                                            result = fetchGoogleCredential(filterByAuthorized = true)
+                                            val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = webClientId)
+                                                .build()
+                                            val request = GetCredentialRequest.Builder()
+                                                .addCredentialOption(signInOption)
+                                                .build()
+                                            result = credentialManager.getCredential(
+                                                context = activity,
+                                                request = request
+                                            )
                                         } catch (e: Throwable) {
-                                            if (isNoCredential(e)) {
-                                                Log.d("GoogleSignIn", "No previously authorized accounts. Retrying once with filterByAuthorizedAccounts = false for full account picker.")
-                                                firstAttemptNoCredential = true
-                                            } else {
-                                                throw e
+                                            if (isCancellation(e)) {
+                                                Log.i("GoogleSignIn", "User cancelled Google Sign-In picker.")
+                                                return@launch
                                             }
+                                            Log.w("GoogleSignIn", "GetSignInWithGoogleOption failed: ${e.message}. Trying GetGoogleIdOption fallback...")
                                         }
 
-                                        // 2. If first attempt throws NoCredentialException, automatically retry ONCE with filterByAuthorizedAccounts = false
-                                        if (result == null && firstAttemptNoCredential) {
-                                            result = fetchGoogleCredential(filterByAuthorized = false)
+                                        // 2. Fallback: Try GetGoogleIdOption with filterByAuthorizedAccounts = false
+                                        if (result == null) {
+                                            val googleIdOption = GetGoogleIdOption.Builder()
+                                                .setFilterByAuthorizedAccounts(false)
+                                                .setServerClientId(webClientId)
+                                                .setAutoSelectEnabled(false)
+                                                .build()
+                                            val fallbackRequest = GetCredentialRequest.Builder()
+                                                .addCredentialOption(googleIdOption)
+                                                .build()
+                                            result = credentialManager.getCredential(
+                                                context = activity,
+                                                request = fallbackRequest
+                                            )
                                         }
 
                                         val finalResult = result
-                                            ?: throw NoCredentialException("No credentials available")
+                                            ?: throw NoCredentialException("No credentials returned from Google Sign-In")
 
                                         val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(finalResult.credential.data)
                                         val idToken = googleIdTokenCredential.idToken
@@ -351,18 +447,11 @@ fun AuthScreen(
                                             photoUrl = userPhotoUrl
                                         )
                                     } catch (e: Throwable) {
-                                        val isCancellation = e is GetCredentialCancellationException ||
-                                                e.message?.contains("cancel", ignoreCase = true) == true
-
-                                        if (isCancellation) {
+                                        if (isCancellation(e)) {
                                             Log.i("GoogleSignIn", "Google Sign-In cancelled/dismissed by user.")
-                                        } else if (isNoCredential(e)) {
-                                            // 3. Only show "No Google Account on Device" if BOTH attempts fail (truly no account on device)
-                                            Log.w("GoogleSignIn", "Both attempts failed with NoCredentialException: No Google account found on device.")
-                                            showNoAccountDialog = true
-                                            viewModel.handleGoogleSignInFailure(e)
                                         } else {
-                                            Log.e("GoogleSignIn", "Google Sign-In error: ${e.message}", e)
+                                            Log.e("GoogleSignIn", "Google Sign-In failed: ${e.message}", e)
+                                            showDiagnosticDialog = true
                                             viewModel.handleGoogleSignInFailure(e)
                                         }
                                     }
@@ -395,6 +484,33 @@ fun AuthScreen(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Help / Diagnostics prompt row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showDiagnosticDialog = true },
+                            modifier = Modifier.testTag("google_signin_help_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isBn) "সাইন ইন সমস্যা? SHA-1 দেখুন" else "Trouble signing in? View SHA-1",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }

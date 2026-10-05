@@ -70,4 +70,16 @@ class ExampleRobolectricTest {
     assertTrue(isNoCred1)
     assertTrue(isCancel1)
   }
+
+  @Test
+  fun `auth diagnostics identifies known hashes and formats correctly`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val knownHashes = com.plusemon.hisab.domain.util.AuthDiagnostics.KNOWN_FIREBASE_SHA1_HASHES
+    assertEquals(2, knownHashes.size)
+    assertTrue(knownHashes.contains("A2:7F:46:52:5C:5E:1C:93:89:4F:07:C3:17:F9:83:B3:38:CE:51:0E"))
+    assertEquals("41:33:99:F7:93:E1:54:93:B7:F9:15:4E:AC:08:B5:FA:24:19:3D:60", com.plusemon.hisab.domain.util.AuthDiagnostics.DEBUG_KEYSTORE_SHA1)
+
+    val currentSha1 = com.plusemon.hisab.domain.util.AuthDiagnostics.getCurrentAppSha1(context)
+    assertTrue(currentSha1.isNotBlank())
+  }
 }
