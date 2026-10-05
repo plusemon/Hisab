@@ -30,8 +30,12 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -70,6 +74,7 @@ import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.ExpenseRed
@@ -90,10 +95,13 @@ fun AccountsScreen(
     val currSymbol = settings.currencySymbol
 
     val accountsWithBalances by viewModel.accountsWithBalances.collectAsState()
+    val archivedAccountsWithBalances by viewModel.archivedAccountsWithBalances.collectAsState()
     val totalBalance by viewModel.totalBalance.collectAsState()
 
     var editingAccount by remember { mutableStateOf<UserAccount?>(null) }
     var isAddingAccount by remember { mutableStateOf(false) }
+    var isArchivedExpanded by remember { mutableStateOf(false) }
+    var accountToDelete by remember { mutableStateOf<UserAccount?>(null) }
 
     if (isAddingAccount || editingAccount != null) {
         AddEditAccountDialog(
@@ -119,6 +127,43 @@ fun AccountsScreen(
                 }
                 isAddingAccount = false
                 editingAccount = null
+            }
+        )
+    }
+
+    if (accountToDelete != null) {
+        val target = accountToDelete!!
+        AlertDialog(
+            onDismissRequest = { accountToDelete = null },
+            title = {
+                Text(
+                    text = if (isBn) "অ্যাকাউন্ট মুছে ফেলবেন?" else "Delete Account?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (isBn)
+                        "আপনি কি নিশ্চিত যে '${target.name}' অ্যাকাউন্টটি মুছে ফেলতে চান? যদি এতে কোনো পূর্ববর্তী লেনদেন থাকে তবে এটি মোছা যাবে না (সেক্ষেত্রে অ্যাকাউন্টটি আর্কাইভ রাখতে পারেন)।"
+                    else
+                        "Are you sure you want to delete '${target.name}'? If it contains past transactions, it cannot be deleted and should remain archived."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteAccount(target.id)
+                        accountToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                ) {
+                    Text(if (isBn) "মুছে ফেলুন" else "Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { accountToDelete = null }) {
+                    Text(Localization.getString(Localization.Key.CANCEL, isBn))
+                }
             }
         )
     }
@@ -193,17 +238,154 @@ fun AccountsScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(accountsWithBalances, key = { it.account.id }) { item ->
-                    AccountDetailedItem(
-                        item = item,
-                        isBangla = isBn,
-                        useBnDigits = useBnDigits,
-                        hideBalances = hideBalances,
-                        currencySymbol = currSymbol,
-                        onEdit = { editingAccount = item.account },
-                        onArchive = { viewModel.archiveAccount(item.account.id, true) },
-                        onDelete = { viewModel.deleteAccount(item.account.id) }
-                    )
+                if (accountsWithBalances.isEmpty() && archivedAccountsWithBalances.isEmpty()) {
+                    item {
+                        EmptyStateView(
+                            icon = Icons.Default.Add,
+                            title = Localization.getString(Localization.Key.EMPTY_ACCOUNTS, isBn),
+                            description = if (isBn) "নতুন অ্যাকাউন্ট তৈরি করতে নিচের + বাটনে চাপ দিন" else "Tap + below to create a new account",
+                            actionLabel = Localization.getString(Localization.Key.ADD_ACCOUNT, isBn),
+                            onActionClick = { isAddingAccount = true }
+                        )
+                    }
+                } else if (accountsWithBalances.isEmpty() && archivedAccountsWithBalances.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = if (isBn) "বর্তমানে কোনো সক্রিয় অ্যাকাউন্ট নেই" else "No active accounts",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isBn) "আপনার অ্যাকাউন্টগুলো নিচে আর্কাইভ করা রয়েছে। নিচের সেকশন থেকে যেকোনো অ্যাকাউন্ট পুনরায় চালু করতে পারেন অথবা নতুন অ্যাকাউন্ট যুক্ত করতে পারেন।"
+                                    else "All accounts are archived. You can restore them from the section below or add a new account.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(accountsWithBalances, key = { it.account.id }) { item ->
+                        AccountDetailedItem(
+                            item = item,
+                            isBangla = isBn,
+                            useBnDigits = useBnDigits,
+                            hideBalances = hideBalances,
+                            currencySymbol = currSymbol,
+                            onEdit = { editingAccount = item.account },
+                            onArchive = {
+                                isArchivedExpanded = true
+                                viewModel.archiveAccount(item.account.id, true)
+                            },
+                            onDelete = { accountToDelete = item.account }
+                        )
+                    }
+                }
+
+                // Archived Accounts Expandable Section
+                if (archivedAccountsWithBalances.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { isArchivedExpanded = !isArchivedExpanded }
+                                .testTag("archived_accounts_header"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Archive,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = Localization.getString(Localization.Key.ARCHIVED_ACCOUNTS, isBn),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            ) {
+                                                val countStr = archivedAccountsWithBalances.size.toString()
+                                                Text(
+                                                    text = if (useBnDigits) Formatters.toBanglaDigits(countStr) else countStr,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = Localization.getString(Localization.Key.ARCHIVED_ACCOUNTS_SUBTITLE, isBn),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = if (isArchivedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = if (isArchivedExpanded) "Collapse" else "Expand",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    if (isArchivedExpanded) {
+                        items(archivedAccountsWithBalances, key = { "archived_${it.account.id}" }) { item ->
+                            ArchivedAccountDetailedItem(
+                                item = item,
+                                isBangla = isBn,
+                                useBnDigits = useBnDigits,
+                                hideBalances = hideBalances,
+                                currencySymbol = currSymbol,
+                                onEdit = { editingAccount = item.account },
+                                onUnarchive = { viewModel.archiveAccount(item.account.id, false) },
+                                onDelete = { accountToDelete = item.account }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -301,6 +483,133 @@ fun AccountDetailedItem(
                         Icon(
                             Icons.Default.Archive,
                             contentDescription = "Archive",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = ExpenseRed.copy(alpha = 0.8f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ArchivedAccountDetailedItem(
+    item: AccountWithBalance,
+    isBangla: Boolean,
+    useBnDigits: Boolean,
+    hideBalances: Boolean,
+    currencySymbol: String,
+    onEdit: () -> Unit,
+    onUnarchive: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val acc = item.account
+    val accColor = parseColorHex(acc.colorHex)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("archived_account_item_${acc.id}"),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = getIconByName(acc.iconName),
+                    contentDescription = null,
+                    tint = accColor.copy(alpha = 0.85f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = acc.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = Localization.getString(Localization.Key.ARCHIVED_BADGE, isBangla),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = if (isBangla) acc.type.labelBn else acc.type.labelEn,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                CurrencyAmountText(
+                    amount = item.balance,
+                    currencySymbol = currencySymbol,
+                    useBanglaDigits = useBnDigits,
+                    hideBalances = hideBalances,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (item.balance < 0) ExpenseRed else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    IconButton(
+                        onClick = onUnarchive,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Unarchive,
+                            contentDescription = Localization.getString(Localization.Key.UNARCHIVE, isBangla),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )

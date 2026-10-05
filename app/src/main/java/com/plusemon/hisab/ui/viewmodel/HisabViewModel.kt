@@ -128,6 +128,9 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     private val _accountsWithBalances = MutableStateFlow<List<AccountWithBalance>>(emptyList())
     val accountsWithBalances = _accountsWithBalances.asStateFlow()
 
+    private val _archivedAccountsWithBalances = MutableStateFlow<List<AccountWithBalance>>(emptyList())
+    val archivedAccountsWithBalances = _archivedAccountsWithBalances.asStateFlow()
+
     private val _totalBalance = MutableStateFlow(0.0)
     val totalBalance = _totalBalance.asStateFlow()
 
@@ -254,6 +257,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         _settings.value = UserSettings(userId = "", language = savedLang, numeralSystem = savedNumeral)
         _isAppLocked.value = false
         _accountsWithBalances.value = emptyList()
+        _archivedAccountsWithBalances.value = emptyList()
         _totalBalance.value = 0.0
         _transactions.value = emptyList()
         _categories.value = emptyList()
@@ -301,16 +305,24 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 hisabRepository.calculateAccountBalances(userId)
             ) { accounts, balanceMap ->
                 val activeAccounts = accounts.filter { !it.isArchived }
-                val mapped = activeAccounts.map { acc ->
+                val archivedAccounts = accounts.filter { it.isArchived }
+                val mappedActive = activeAccounts.map { acc ->
                     AccountWithBalance(
                         account = acc,
                         balance = balanceMap[acc.id] ?: acc.startingBalance
                     )
                 }
-                val total = mapped.sumOf { it.balance }
-                Pair(mapped, total)
-            }.collect { (accountsList, total) ->
-                _accountsWithBalances.value = accountsList
+                val mappedArchived = archivedAccounts.map { acc ->
+                    AccountWithBalance(
+                        account = acc,
+                        balance = balanceMap[acc.id] ?: acc.startingBalance
+                    )
+                }
+                val total = mappedActive.sumOf { it.balance }
+                Triple(mappedActive, mappedArchived, total)
+            }.collect { (activeList, archivedList, total) ->
+                _accountsWithBalances.value = activeList
+                _archivedAccountsWithBalances.value = archivedList
                 _totalBalance.value = total
             }
         }
@@ -971,7 +983,27 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
             hisabRepository.archiveAccount(accountId, user.id, isArchived)
-            _snackbarMessage.emit(if (isArchived) "অ্যাকাউন্ট আর্কাইভ করা হয়েছে" else "অ্যাকাউন্ট পুনরায় চালু করা হয়েছে")
+            val updatedAcc = hisabRepository.getAccountById(accountId, user.id)
+            if (updatedAcc != null) {
+                try {
+                    firestoreRepository.saveAccount(user.id, updatedAcc)
+                } catch (e: Exception) {
+                    android.util.Log.w("HisabViewModel", "Firestore sync account error: ${e.message}")
+                }
+            }
+            _snackbarMessage.emit(
+                if (isArchived) {
+                    if (_settings.value.language == "bn")
+                        "অ্যাকাউন্ট আর্কাইভ করা হয়েছে (নিচের 'আর্কাইভ করা অ্যাকাউন্ট' সেকশনে দেখতে পারেন)"
+                    else
+                        "Account archived (available in Archived Accounts section below)"
+                } else {
+                    if (_settings.value.language == "bn")
+                        "অ্যাকাউন্ট পুনরুদ্ধার করা হয়েছে"
+                    else
+                        "Account restored successfully"
+                }
+            )
         }
     }
 

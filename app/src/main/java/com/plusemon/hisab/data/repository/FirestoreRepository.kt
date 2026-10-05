@@ -26,6 +26,7 @@ interface FirestoreRepository {
     suspend fun updateTransaction(userId: String, transaction: TransactionRecord): Result<Unit>
     suspend fun deleteTransaction(userId: String, transactionId: Long): Result<Unit>
     suspend fun fetchTransactions(userId: String): Result<List<TransactionRecord>>
+    suspend fun saveAccount(userId: String, account: UserAccount): Result<Unit>
     suspend fun syncAllWithRoom(userId: String): Result<Int>
     fun observeRemoteTransactions(userId: String): Flow<List<TransactionRecord>>
 }
@@ -130,6 +131,41 @@ class FirestoreRepositoryImpl(
             Result.success(Unit)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to delete transaction $transactionId from Firestore: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun saveAccount(
+        userId: String,
+        account: UserAccount
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val firestore = getFirestore() ?: return@withContext Result.failure(
+            IllegalStateException("Firebase is not initialized")
+        )
+        try {
+            val accData = hashMapOf(
+                "id" to account.id,
+                "userId" to userId,
+                "name" to account.name,
+                "type" to account.type.name,
+                "currencyCode" to account.currencyCode,
+                "startingBalance" to account.startingBalance,
+                "colorHex" to account.colorHex,
+                "iconName" to account.iconName,
+                "isArchived" to account.isArchived,
+                "createdAt" to account.createdAt,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            firestore.collection(COLLECTION_USERS)
+                .document(userId)
+                .collection(COLLECTION_ACCOUNTS)
+                .document(account.id.toString())
+                .set(accData, SetOptions.merge())
+                .awaitTask()
+            Log.d(TAG, "Account ${account.id} saved to Firestore for user $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save account ${account.id} to Firestore: ${e.message}", e)
             Result.failure(e)
         }
     }
