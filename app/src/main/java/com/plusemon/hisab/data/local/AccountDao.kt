@@ -19,6 +19,12 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :accountId AND userId = :userId LIMIT 1")
     suspend fun getAccountById(accountId: Long, userId: String): UserAccount?
 
+    @Query("SELECT COUNT(*) FROM accounts WHERE userId = :userId")
+    suspend fun getAccountCount(userId: String): Int
+
+    @Query("SELECT * FROM accounts WHERE userId = :userId AND isArchived = 0 LIMIT 1")
+    suspend fun getFirstActiveAccount(userId: String): UserAccount?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccount(account: UserAccount): Long
 

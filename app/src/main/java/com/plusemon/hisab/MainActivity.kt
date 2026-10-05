@@ -10,9 +10,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -55,6 +57,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by viewModel.settings.collectAsState()
             val currentUser by viewModel.currentUser.collectAsState()
+            val isAuthInitializing by viewModel.isAuthInitializing.collectAsState()
             val isLocked by viewModel.isAppLocked.collectAsState()
 
             HisabTheme(darkTheme = settings.isDarkMode) {
@@ -66,8 +69,19 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Authentication Gate: Mandatory sign-in before any screen is reachable
-                if (currentUser == null) {
+                // Authentication Gate: Check loading first to prevent screen flicker
+                if (isAuthInitializing && currentUser == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else if (currentUser == null) {
                     AuthScreen(viewModel = viewModel)
                 } else if (isLocked) {
                     PinLockScreen(

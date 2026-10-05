@@ -48,16 +48,75 @@ class AuthRepository(
 
     init {
         val savedUserId = prefs.getString("current_user_id", null)
-        if (!savedUserId.isNullOrEmpty()) {
-            // Read synchronous / cached user for immediate load
+        val savedEmail = prefs.getString("current_user_email", null)
+        val savedName = prefs.getString("current_user_name", null)
+        val savedPhoto = prefs.getString("current_user_photo", null)
+        val savedIsGoogle = prefs.getBoolean("current_user_is_google", false)
+        if (!savedUserId.isNullOrEmpty() && !savedEmail.isNullOrEmpty()) {
+            _currentUser.value = User(
+                id = savedUserId,
+                email = savedEmail,
+                displayName = savedName ?: "User",
+                photoUrl = savedPhoto,
+                isGoogleUser = savedIsGoogle
+            )
         }
     }
 
     suspend fun loadInitialUser() = withContext(Dispatchers.IO) {
         val savedUserId = prefs.getString("current_user_id", null)
+        val savedEmail = prefs.getString("current_user_email", null)
+
+        var user: User? = null
         if (!savedUserId.isNullOrEmpty()) {
-            val user = userDao.getUserDirect(savedUserId)
-            _currentUser.value = user
+            user = userDao.getUserDirect(savedUserId)
+        }
+        if (user == null && !savedEmail.isNullOrEmpty()) {
+            user = userDao.getUserByEmail(savedEmail)
+        }
+        if (user == null) {
+            // Check Firebase Auth if available
+            try {
+                if (FirebaseApp.getApps(context).isNotEmpty()) {
+                    val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    if (fbUser != null && !fbUser.email.isNullOrEmpty()) {
+                        user = userDao.getUserByEmail(fbUser.email!!)
+                        if (user == null) {
+                            user = User(
+                                id = fbUser.uid,
+                                email = fbUser.email!!,
+                                displayName = fbUser.displayName ?: fbUser.email!!.substringBefore("@"),
+                                photoUrl = fbUser.photoUrl?.toString(),
+                                isGoogleUser = true
+                            )
+                            userDao.insertUser(user)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("AuthRepository", "Firebase auth check failed: ${e.message}")
+            }
+        }
+        if (user == null) {
+            val allUsers = userDao.getAllUsersDirect()
+            if (allUsers.isNotEmpty()) {
+                user = allUsers.first()
+            }
+        }
+
+        if (user != null) {
+            userDao.insertUser(user)
+            ensureUserDataSeeded(user.id)
+            saveSession(user)
+        } else {
+            val cached = _currentUser.value
+            if (cached != null) {
+                userDao.insertUser(cached)
+                ensureUserDataSeeded(cached.id)
+                saveSession(cached)
+            } else {
+                _currentUser.value = null
+            }
         }
     }
 
@@ -74,7 +133,7 @@ class AuthRepository(
     ): AuthResult = withContext(Dispatchers.IO) {
         try {
             var user = userDao.getUserByEmail(email)
-            val userId = uid ?: user?.id ?: UUID.randomUUID().toString()
+            val userId = user?.id ?: uid ?: UUID.randomUUID().toString()
 
             if (user == null) {
                 // Create new Google User with real credentials
@@ -86,20 +145,20 @@ class AuthRepository(
                     isGoogleUser = true
                 )
                 userDao.insertUser(user)
-                seedUserData(userId)
+                ensureUserDataSeeded(userId)
             } else {
-                // Update photo / name if needed
+                // Update photo / name if needed, ALWAYS preserve existing user.id to maintain foreign keys
                 val updated = user.copy(
-                    id = if (uid != null) uid else user.id,
                     displayName = displayName.ifBlank { user.displayName },
                     photoUrl = photoUrl ?: user.photoUrl
                 )
                 userDao.updateUser(updated)
                 user = updated
+                ensureUserDataSeeded(user.id)
             }
 
             // Sync user document to Firestore with real uid and email
-            syncFirestoreUser(userId, email, displayName, photoUrl)
+            syncFirestoreUser(user.id, email, displayName, photoUrl)
 
             saveSession(user)
             AuthResult.Success(user)
@@ -145,6 +204,7 @@ class AuthRepository(
             return@withContext AuthResult.Error("Incorrect password. Please verify and try again.")
         }
 
+        ensureUserDataSeeded(user.id)
         saveSession(user)
         AuthResult.Success(user)
     }
@@ -176,106 +236,135 @@ class AuthRepository(
             passwordHash = hashPassword(pass)
         )
         userDao.insertUser(user)
-        seedUserData(newId)
+        ensureUserDataSeeded(newId)
 
         saveSession(user)
         AuthResult.Success(user)
     }
 
-    private suspend fun seedUserData(userId: String) {
-        // 1. Seed Accounts
-        val defaultAccounts = listOf(
-            UserAccount(
-                userId = userId,
-                name = "Cash",
-                type = AccountType.CASH,
-                currencyCode = "BDT",
-                startingBalance = 0.0,
-                colorHex = "#0F766E",
-                iconName = "payments"
-            ),
-            UserAccount(
-                userId = userId,
-                name = "bKash",
-                type = AccountType.MOBILE_WALLET,
-                currencyCode = "BDT",
-                startingBalance = 0.0,
-                colorHex = "#E11475",
-                iconName = "account_balance_wallet"
-            ),
-            UserAccount(
-                userId = userId,
-                name = "Nagad",
-                type = AccountType.MOBILE_WALLET,
-                currencyCode = "BDT",
-                startingBalance = 0.0,
-                colorHex = "#F97316",
-                iconName = "account_balance_wallet"
-            ),
-            UserAccount(
-                userId = userId,
-                name = "Bank Account",
-                type = AccountType.BANK,
-                currencyCode = "BDT",
-                startingBalance = 0.0,
-                colorHex = "#2563EB",
-                iconName = "account_balance"
+    suspend fun ensureUserDataSeeded(userId: String) = withContext(Dispatchers.IO) {
+        // 1. Seed Accounts if none exist
+        val accCount = accountDao.getAccountCount(userId)
+        if (accCount == 0) {
+            val defaultAccounts = listOf(
+                UserAccount(
+                    userId = userId,
+                    name = "Cash",
+                    type = AccountType.CASH,
+                    currencyCode = "BDT",
+                    startingBalance = 0.0,
+                    colorHex = "#0F766E",
+                    iconName = "payments"
+                ),
+                UserAccount(
+                    userId = userId,
+                    name = "bKash",
+                    type = AccountType.MOBILE_WALLET,
+                    currencyCode = "BDT",
+                    startingBalance = 0.0,
+                    colorHex = "#E11475",
+                    iconName = "account_balance_wallet"
+                ),
+                UserAccount(
+                    userId = userId,
+                    name = "Nagad",
+                    type = AccountType.MOBILE_WALLET,
+                    currencyCode = "BDT",
+                    startingBalance = 0.0,
+                    colorHex = "#F97316",
+                    iconName = "account_balance_wallet"
+                ),
+                UserAccount(
+                    userId = userId,
+                    name = "Bank Account",
+                    type = AccountType.BANK,
+                    currencyCode = "BDT",
+                    startingBalance = 0.0,
+                    colorHex = "#2563EB",
+                    iconName = "account_balance"
+                )
             )
-        )
-        accountDao.insertAccounts(defaultAccounts)
+            accountDao.insertAccounts(defaultAccounts)
+        }
 
-        // 2. Seed Expense & Income Categories (Curated Cohesive Palette)
-        val defaultCategories = listOf(
-            // Expense Categories
-            Category(userId = userId, nameBn = "খাবার", nameEn = "Food & Dining", type = TransactionType.EXPENSE, iconName = "restaurant", colorHex = "#F97316", isDefault = true),
-            Category(userId = userId, nameBn = "বাজার ও মুদি", nameEn = "Groceries", type = TransactionType.EXPENSE, iconName = "shopping_cart", colorHex = "#10B981", isDefault = true),
-            Category(userId = userId, nameBn = "যাতায়াত", nameEn = "Transport", type = TransactionType.EXPENSE, iconName = "directions_bus", colorHex = "#2563EB", isDefault = true),
-            Category(userId = userId, nameBn = "বিল ও ইউটিলিটি", nameEn = "Bills & Utilities", type = TransactionType.EXPENSE, iconName = "receipt_long", colorHex = "#EF4444", isDefault = true),
-            Category(userId = userId, nameBn = "কেনাকাটা", nameEn = "Shopping", type = TransactionType.EXPENSE, iconName = "shopping_bag", colorHex = "#EC4899", isDefault = true),
-            Category(userId = userId, nameBn = "চিকিৎসা ও স্বাস্থ্য", nameEn = "Healthcare", type = TransactionType.EXPENSE, iconName = "medical_services", colorHex = "#0D9488", isDefault = true),
-            Category(userId = userId, nameBn = "বিনোদন ও ভ্রমণ", nameEn = "Entertainment", type = TransactionType.EXPENSE, iconName = "movie", colorHex = "#7C3AED", isDefault = true),
-            Category(userId = userId, nameBn = "শিক্ষা", nameEn = "Education", type = TransactionType.EXPENSE, iconName = "school", colorHex = "#F59E0B", isDefault = true),
-            Category(userId = userId, nameBn = "অন্যান্য খরচ", nameEn = "Other Expense", type = TransactionType.EXPENSE, iconName = "category", colorHex = "#64748B", isDefault = true),
-            Category(userId = userId, nameBn = "দোকান বাকি পরিশোধ", nameEn = "Shop Credit Payment", type = TransactionType.EXPENSE, iconName = "store", colorHex = "#EF4444", isDefault = true),
+        // 2. Seed Expense & Income Categories if none exist
+        val catCount = categoryDao.getCategoryCount(userId)
+        if (catCount == 0) {
+            val defaultCategories = listOf(
+                // Expense Categories
+                Category(userId = userId, nameBn = "খাবার", nameEn = "Food & Dining", type = TransactionType.EXPENSE, iconName = "restaurant", colorHex = "#F97316", isDefault = true),
+                Category(userId = userId, nameBn = "বাজার ও মুদি", nameEn = "Groceries", type = TransactionType.EXPENSE, iconName = "shopping_cart", colorHex = "#10B981", isDefault = true),
+                Category(userId = userId, nameBn = "যাতায়াত", nameEn = "Transport", type = TransactionType.EXPENSE, iconName = "directions_bus", colorHex = "#2563EB", isDefault = true),
+                Category(userId = userId, nameBn = "বিল ও ইউটিলিটি", nameEn = "Bills & Utilities", type = TransactionType.EXPENSE, iconName = "receipt_long", colorHex = "#EF4444", isDefault = true),
+                Category(userId = userId, nameBn = "কেনাকাটা", nameEn = "Shopping", type = TransactionType.EXPENSE, iconName = "shopping_bag", colorHex = "#EC4899", isDefault = true),
+                Category(userId = userId, nameBn = "চিকিৎসা ও স্বাস্থ্য", nameEn = "Healthcare", type = TransactionType.EXPENSE, iconName = "medical_services", colorHex = "#0D9488", isDefault = true),
+                Category(userId = userId, nameBn = "বিনোদন ও ভ্রমণ", nameEn = "Entertainment", type = TransactionType.EXPENSE, iconName = "movie", colorHex = "#7C3AED", isDefault = true),
+                Category(userId = userId, nameBn = "শিক্ষা", nameEn = "Education", type = TransactionType.EXPENSE, iconName = "school", colorHex = "#F59E0B", isDefault = true),
+                Category(userId = userId, nameBn = "অন্যান্য খরচ", nameEn = "Other Expense", type = TransactionType.EXPENSE, iconName = "category", colorHex = "#64748B", isDefault = true),
+                Category(userId = userId, nameBn = "দোকান বাকি পরিশোধ", nameEn = "Shop Credit Payment", type = TransactionType.EXPENSE, iconName = "store", colorHex = "#EF4444", isDefault = true),
 
-            // Income Categories
-            Category(userId = userId, nameBn = "বেতন", nameEn = "Salary", type = TransactionType.INCOME, iconName = "payments", colorHex = "#10B981", isDefault = true),
-            Category(userId = userId, nameBn = "ব্যবসা", nameEn = "Business", type = TransactionType.INCOME, iconName = "store", colorHex = "#2563EB", isDefault = true),
-            Category(userId = userId, nameBn = "ফ্রিল্যান্সিং", nameEn = "Freelancing", type = TransactionType.INCOME, iconName = "laptop", colorHex = "#7C3AED", isDefault = true),
-            Category(userId = userId, nameBn = "বিনিয়োগ ও লভ্যাংশ", nameEn = "Investments", type = TransactionType.INCOME, iconName = "trending_up", colorHex = "#F59E0B", isDefault = true),
-            Category(userId = userId, nameBn = "উপহার ও অনুদান", nameEn = "Gifts & Grants", type = TransactionType.INCOME, iconName = "card_giftcard", colorHex = "#EC4899", isDefault = true),
-            Category(userId = userId, nameBn = "অন্যান্য আয়", nameEn = "Other Income", type = TransactionType.INCOME, iconName = "attach_money", colorHex = "#0D9488", isDefault = true)
-        )
-        categoryDao.insertCategories(defaultCategories)
+                // Income Categories
+                Category(userId = userId, nameBn = "বেতন", nameEn = "Salary", type = TransactionType.INCOME, iconName = "payments", colorHex = "#10B981", isDefault = true),
+                Category(userId = userId, nameBn = "ব্যবসা", nameEn = "Business", type = TransactionType.INCOME, iconName = "store", colorHex = "#2563EB", isDefault = true),
+                Category(userId = userId, nameBn = "ফ্রিল্যান্সিং", nameEn = "Freelancing", type = TransactionType.INCOME, iconName = "laptop", colorHex = "#7C3AED", isDefault = true),
+                Category(userId = userId, nameBn = "বিনিয়োগ ও লভ্যাংশ", nameEn = "Investments", type = TransactionType.INCOME, iconName = "trending_up", colorHex = "#F59E0B", isDefault = true),
+                Category(userId = userId, nameBn = "উপহার ও অনুদান", nameEn = "Gifts & Grants", type = TransactionType.INCOME, iconName = "card_giftcard", colorHex = "#EC4899", isDefault = true),
+                Category(userId = userId, nameBn = "অন্যান্য আয়", nameEn = "Other Income", type = TransactionType.INCOME, iconName = "attach_money", colorHex = "#0D9488", isDefault = true)
+            )
+            categoryDao.insertCategories(defaultCategories)
+        }
 
-        // 3. Seed Default User Settings
-        val settingsPrefs = context.getSharedPreferences("hisab_settings_prefs", Context.MODE_PRIVATE)
-        val preferredLang = settingsPrefs.getString("language", "bn") ?: "bn"
-        val preferredNumeral = settingsPrefs.getString("numeral_system", if (preferredLang == "bn") "bn" else "en") ?: "bn"
+        // 3. Seed Default User Settings if not present
+        val existingSettings = settingsDao.getSettingsDirect(userId)
+        if (existingSettings == null) {
+            val settingsPrefs = context.getSharedPreferences("hisab_settings_prefs", Context.MODE_PRIVATE)
+            val preferredLang = settingsPrefs.getString("language", "bn") ?: "bn"
+            val preferredNumeral = settingsPrefs.getString("numeral_system", if (preferredLang == "bn") "bn" else "en") ?: "bn"
 
-        val settings = UserSettings(
-            userId = userId,
-            language = preferredLang,
-            numeralSystem = preferredNumeral,
-            defaultCurrency = "BDT",
-            currencySymbol = "৳"
-        )
-        settingsDao.insertOrUpdate(settings)
+            val settings = UserSettings(
+                userId = userId,
+                language = preferredLang,
+                numeralSystem = preferredNumeral,
+                defaultCurrency = "BDT",
+                currencySymbol = "৳"
+            )
+            settingsDao.insertOrUpdate(settings)
+        }
     }
 
     private fun saveSession(user: User) {
-        prefs.edit().putString("current_user_id", user.id).apply()
+        prefs.edit()
+            .putString("current_user_id", user.id)
+            .putString("current_user_email", user.email)
+            .putString("current_user_name", user.displayName)
+            .putString("current_user_photo", user.photoUrl)
+            .putBoolean("current_user_is_google", user.isGoogleUser)
+            .apply()
         _currentUser.value = user
     }
 
     suspend fun signOut() = withContext(Dispatchers.IO) {
-        prefs.edit().remove("current_user_id").apply()
+        prefs.edit().clear().apply()
+        try {
+            if (FirebaseApp.getApps(context).isNotEmpty()) {
+                com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Firebase sign out error: ${e.message}")
+        }
         _currentUser.value = null
     }
 
     suspend fun deleteAccountAndData(userId: String) = withContext(Dispatchers.IO) {
         db.userDao().deleteUser(userId)
-        prefs.edit().remove("current_user_id").apply()
+        prefs.edit().clear().apply()
+        try {
+            if (FirebaseApp.getApps(context).isNotEmpty()) {
+                com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Firebase sign out error: ${e.message}")
+        }
         _currentUser.value = null
     }
 }

@@ -148,6 +148,34 @@ fun AddEditTransactionScreen(
         )
     }
 
+    // Ensure data is seeded if empty
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.ensureDefaultData()
+    }
+
+    // Keep selectedAccountId in sync as accounts load reactively
+    androidx.compose.runtime.LaunchedEffect(availableAccounts) {
+        if (availableAccounts.isNotEmpty()) {
+            if (selectedAccountId <= 0L || availableAccounts.none { it.id == selectedAccountId }) {
+                selectedAccountId = availableAccounts.first().id
+            }
+            if (selectedToAccountId <= 0L || availableAccounts.none { it.id == selectedToAccountId }) {
+                selectedToAccountId = availableAccounts.getOrNull(1)?.id ?: availableAccounts.first().id
+            }
+        }
+    }
+
+    // Keep selectedCategoryId in sync when switching types or when categories load reactively
+    androidx.compose.runtime.LaunchedEffect(typeCategories, transactionType) {
+        if (transactionType != TransactionType.TRANSFER) {
+            if (selectedCategoryId == null || typeCategories.none { it.id == selectedCategoryId }) {
+                selectedCategoryId = typeCategories.firstOrNull()?.id
+            }
+        } else {
+            selectedCategoryId = null
+        }
+    }
+
     var note by remember {
         mutableStateOf(existingTransaction?.transaction?.note ?: "")
     }
@@ -417,11 +445,47 @@ fun AddEditTransactionScreen(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                AccountSelectorChips(
-                    accounts = availableAccounts,
-                    selectedId = selectedAccountId,
-                    onSelect = { selectedAccountId = it }
-                )
+                if (availableAccounts.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable { viewModel.ensureDefaultData() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Receipt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = if (isBn) "কোনো অ্যাকাউন্ট পাওয়া যায়নি" else "No account found",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (isBn) "ডিফল্ট অ্যাকাউন্ট তৈরি করতে এখানে ট্যাপ করুন" else "Tap here to load default accounts",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    AccountSelectorChips(
+                        accounts = availableAccounts,
+                        selectedId = selectedAccountId,
+                        onSelect = { selectedAccountId = it }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -433,12 +497,48 @@ fun AddEditTransactionScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                CategoryGridSelector(
-                    categories = typeCategories,
-                    selectedCategoryId = selectedCategoryId,
-                    isBangla = isBn,
-                    onSelect = { selectedCategoryId = it }
-                )
+                if (typeCategories.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable { viewModel.ensureDefaultData() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Receipt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = if (isBn) "কোনো ক্যাটাগরি পাওয়া যায়নি" else "No categories found",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (isBn) "ডিফল্ট ক্যাটাগরি লোড করতে এখানে ট্যাপ করুন" else "Tap here to reload default categories",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    CategoryGridSelector(
+                        categories = typeCategories,
+                        selectedCategoryId = selectedCategoryId,
+                        isBangla = isBn,
+                        onSelect = { selectedCategoryId = it }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -545,19 +645,30 @@ fun AddEditTransactionScreen(
                         errorMessage = if (isBn) "সঠিক টাকার পরিমাণ লিখুন" else "Please enter a valid amount"
                         return@Button
                     }
-                    if (transactionType == TransactionType.TRANSFER && selectedAccountId == selectedToAccountId) {
+
+                    val effectiveAccountId = if (selectedAccountId > 0L) selectedAccountId else availableAccounts.firstOrNull()?.id ?: 0L
+                    if (effectiveAccountId <= 0L) {
+                        viewModel.ensureDefaultData()
+                        errorMessage = if (isBn) "অনুগ্রহ করে একটি অ্যাকাউন্ট নির্বাচন করুন বা তৈরি করুন" else "Please select or create an account"
+                        return@Button
+                    }
+
+                    val effectiveToAccountId = if (selectedToAccountId > 0L) selectedToAccountId else availableAccounts.getOrNull(1)?.id ?: effectiveAccountId
+
+                    if (transactionType == TransactionType.TRANSFER && effectiveAccountId == effectiveToAccountId) {
                         errorMessage = if (isBn) "একই অ্যাকাউন্টে স্থানান্তর সম্ভব নয়" else "Source and target accounts must be different"
                         return@Button
                     }
 
                     val fee = feeText.toDoubleOrNull() ?: 0.0
                     val exchangeRate = exchangeRateText.toDoubleOrNull() ?: 1.0
+                    val effectiveCategoryId = if (transactionType == TransactionType.TRANSFER) null else (selectedCategoryId ?: typeCategories.firstOrNull()?.id)
 
                     if (existingTransaction == null) {
                         viewModel.addTransaction(
-                            accountId = selectedAccountId,
-                            categoryId = selectedCategoryId,
-                            toAccountId = if (transactionType == TransactionType.TRANSFER) selectedToAccountId else null,
+                            accountId = effectiveAccountId,
+                            categoryId = effectiveCategoryId,
+                            toAccountId = if (transactionType == TransactionType.TRANSFER) effectiveToAccountId else null,
                             amount = amount,
                             fee = fee,
                             type = transactionType,
@@ -569,9 +680,9 @@ fun AddEditTransactionScreen(
                     } else {
                         viewModel.updateTransaction(
                             id = existingTransaction.transaction.id,
-                            accountId = selectedAccountId,
-                            categoryId = selectedCategoryId,
-                            toAccountId = if (transactionType == TransactionType.TRANSFER) selectedToAccountId else null,
+                            accountId = effectiveAccountId,
+                            categoryId = effectiveCategoryId,
+                            toAccountId = if (transactionType == TransactionType.TRANSFER) effectiveToAccountId else null,
                             amount = amount,
                             fee = fee,
                             type = transactionType,

@@ -99,6 +99,9 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
 
+    private val _isAuthInitializing = MutableStateFlow(true)
+    val isAuthInitializing = _isAuthInitializing.asStateFlow()
+
     private val _authError = MutableStateFlow<String?>(null)
     val authError = _authError.asStateFlow()
 
@@ -177,9 +180,11 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             authRepository.loadInitialUser()
+            _isAuthInitializing.value = false
             authRepository.currentUser.collect { user ->
                 cancelUserJobs()
                 if (user != null) {
+                    authRepository.ensureUserDataSeeded(user.id)
                     observeUserData(user.id)
                     // Auto-process recurring rules on login/open
                     hisabRepository.processRecurringTransactions(user.id)
@@ -190,6 +195,13 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Check for app updates silently on startup
         checkForUpdates(isManual = false)
+    }
+
+    fun ensureDefaultData() {
+        val user = currentUser.value ?: return
+        viewModelScope.launch {
+            authRepository.ensureUserDataSeeded(user.id)
+        }
     }
 
     private fun cancelUserJobs() {
@@ -667,20 +679,42 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addParsedTransaction(parsed: ParsedQuickEntry) {
         val user = currentUser.value ?: return
-        val accId = parsed.matchedAccount?.id ?: _accountsWithBalances.value.firstOrNull()?.account?.id ?: return
         viewModelScope.launch {
-            val record = TransactionRecord(
-                userId = user.id,
-                accountId = accId,
-                categoryId = if (parsed.type != TransactionType.TRANSFER) parsed.matchedCategory?.id else null,
-                toAccountId = if (parsed.type == TransactionType.TRANSFER) parsed.matchedToAccount?.id else null,
-                amount = parsed.amount,
-                type = parsed.type,
-                dateTimestamp = System.currentTimeMillis(),
-                note = parsed.note
-            )
-            hisabRepository.insertTransaction(record)
-            _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
+            try {
+                var accId = parsed.matchedAccount?.id ?: _accountsWithBalances.value.firstOrNull()?.account?.id ?: 0L
+                if (accId <= 0L) {
+                    val fallback = _accountsWithBalances.value.firstOrNull()?.account ?: db.accountDao().getFirstActiveAccount(user.id)
+                    if (fallback != null) {
+                        accId = fallback.id
+                    } else {
+                        val newAcc = UserAccount(
+                            userId = user.id,
+                            name = "Cash",
+                            type = AccountType.CASH,
+                            currencyCode = "BDT",
+                            startingBalance = 0.0,
+                            colorHex = "#0F766E",
+                            iconName = "payments"
+                        )
+                        accId = hisabRepository.addAccount(newAcc)
+                    }
+                }
+                val record = TransactionRecord(
+                    userId = user.id,
+                    accountId = accId,
+                    categoryId = if (parsed.type != TransactionType.TRANSFER) parsed.matchedCategory?.id else null,
+                    toAccountId = if (parsed.type == TransactionType.TRANSFER) parsed.matchedToAccount?.id else null,
+                    amount = parsed.amount,
+                    type = parsed.type,
+                    dateTimestamp = System.currentTimeMillis(),
+                    note = parsed.note
+                )
+                hisabRepository.insertTransaction(record)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("HisabViewModel", "Failed to add parsed transaction: ${e.message}", e)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সংরক্ষণে ত্রুটি: ${e.localizedMessage}" else "Failed to save entry: ${e.localizedMessage}")
+            }
         }
     }
 
@@ -702,21 +736,45 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
-            val record = TransactionRecord(
-                userId = user.id,
-                accountId = accountId,
-                categoryId = if (type != TransactionType.TRANSFER) categoryId else null,
-                toAccountId = if (type == TransactionType.TRANSFER) toAccountId else null,
-                amount = amount,
-                fee = fee,
-                type = type,
-                dateTimestamp = dateTimestamp,
-                note = note,
-                receiptUri = receiptUri,
-                exchangeRate = exchangeRate
-            )
-            hisabRepository.insertTransaction(record)
-            _snackbarMessage.emit("লেনদেন সংরক্ষণ করা হয়েছে")
+            try {
+                var validAccountId = accountId
+                if (validAccountId <= 0L) {
+                    val fallbackAcc = _accountsWithBalances.value.firstOrNull()?.account ?: db.accountDao().getFirstActiveAccount(user.id)
+                    if (fallbackAcc != null) {
+                        validAccountId = fallbackAcc.id
+                    } else {
+                        val newAcc = UserAccount(
+                            userId = user.id,
+                            name = "Cash",
+                            type = AccountType.CASH,
+                            currencyCode = "BDT",
+                            startingBalance = 0.0,
+                            colorHex = "#0F766E",
+                            iconName = "payments"
+                        )
+                        validAccountId = hisabRepository.addAccount(newAcc)
+                    }
+                }
+
+                val record = TransactionRecord(
+                    userId = user.id,
+                    accountId = validAccountId,
+                    categoryId = if (type != TransactionType.TRANSFER) categoryId else null,
+                    toAccountId = if (type == TransactionType.TRANSFER) toAccountId else null,
+                    amount = amount,
+                    fee = fee,
+                    type = type,
+                    dateTimestamp = dateTimestamp,
+                    note = note,
+                    receiptUri = receiptUri,
+                    exchangeRate = exchangeRate
+                )
+                hisabRepository.insertTransaction(record)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন সংরক্ষণ করা হয়েছে" else "Transaction saved successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("HisabViewModel", "Failed to insert transaction: ${e.message}", e)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন সংরক্ষণে সমস্যা হয়েছে: ${e.localizedMessage}" else "Failed to save transaction: ${e.localizedMessage}")
+            }
         }
     }
 
@@ -735,22 +793,27 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
-            val record = TransactionRecord(
-                id = id,
-                userId = user.id,
-                accountId = accountId,
-                categoryId = if (type != TransactionType.TRANSFER) categoryId else null,
-                toAccountId = if (type == TransactionType.TRANSFER) toAccountId else null,
-                amount = amount,
-                fee = fee,
-                type = type,
-                dateTimestamp = dateTimestamp,
-                note = note,
-                receiptUri = receiptUri,
-                exchangeRate = exchangeRate
-            )
-            hisabRepository.updateTransaction(record)
-            _snackbarMessage.emit("লেনদেন আপডেট করা হয়েছে")
+            try {
+                val record = TransactionRecord(
+                    id = id,
+                    userId = user.id,
+                    accountId = accountId,
+                    categoryId = if (type != TransactionType.TRANSFER) categoryId else null,
+                    toAccountId = if (type == TransactionType.TRANSFER) toAccountId else null,
+                    amount = amount,
+                    fee = fee,
+                    type = type,
+                    dateTimestamp = dateTimestamp,
+                    note = note,
+                    receiptUri = receiptUri,
+                    exchangeRate = exchangeRate
+                )
+                hisabRepository.updateTransaction(record)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন আপডেট করা হয়েছে" else "Transaction updated successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("HisabViewModel", "Failed to update transaction: ${e.message}", e)
+                _snackbarMessage.emit(if (_settings.value.language == "bn") "আপডেটে সমস্যা হয়েছে: ${e.localizedMessage}" else "Failed to update: ${e.localizedMessage}")
+            }
         }
     }
 
