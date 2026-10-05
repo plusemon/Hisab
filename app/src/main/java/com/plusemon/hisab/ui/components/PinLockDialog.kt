@@ -77,7 +77,9 @@ fun PinLockScreen(
                 text = if (isBangla) "হিসাব সুরক্ষিত" else "Hisab Locked",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                softWrap = false
             )
 
             Text(

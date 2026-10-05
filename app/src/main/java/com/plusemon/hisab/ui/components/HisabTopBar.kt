@@ -102,7 +102,8 @@ fun HisabTopBar(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false
                     )
                     Text(
                         text = user?.displayName ?: (if (isBn) "স্বাগতম" else "Welcome"),
