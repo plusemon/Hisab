@@ -26,6 +26,8 @@ import com.plusemon.hisab.data.model.Vendor
 import com.plusemon.hisab.data.model.UpdateInfo
 import com.plusemon.hisab.data.repository.AuthRepository
 import com.plusemon.hisab.data.repository.AuthResult
+import com.plusemon.hisab.data.repository.FirestoreRepository
+import com.plusemon.hisab.data.repository.FirestoreRepositoryImpl
 import com.plusemon.hisab.data.repository.HisabRepository
 import com.plusemon.hisab.data.repository.UpdateManager
 import com.plusemon.hisab.data.repository.UpdateRepository
@@ -91,6 +93,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     val authRepository = AuthRepository(application, db)
     val hisabRepository = HisabRepository(db)
+    val firestoreRepository: FirestoreRepository = FirestoreRepositoryImpl(application, db)
     val updateRepository = UpdateRepository()
     val updateManager = UpdateManager(application)
 
@@ -188,6 +191,8 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     observeUserData(user.id)
                     // Auto-process recurring rules on login/open
                     hisabRepository.processRecurringTransactions(user.id)
+                    // Background sync with Firestore to prevent data loss across devices/restarts
+                    syncWithFirestore(user.id)
                 } else {
                     resetUserData()
                 }
@@ -195,6 +200,40 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Check for app updates silently on startup
         checkForUpdates(isManual = false)
+    }
+
+    private fun syncWithFirestore(userId: String) {
+        viewModelScope.launch {
+            try {
+                firestoreRepository.syncAllWithRoom(userId)
+            } catch (e: Exception) {
+                android.util.Log.w("HisabViewModel", "Background sync with Firestore error: ${e.message}")
+            }
+        }
+    }
+
+    fun triggerManualSync() {
+        val user = currentUser.value ?: return
+        viewModelScope.launch {
+            _snackbarMessage.emit(if (_settings.value.language == "bn") "ক্লাউড সিঙ্ক শুরু হচ্ছে..." else "Starting cloud sync...")
+            val result = firestoreRepository.syncAllWithRoom(user.id)
+            if (result.isSuccess) {
+                val count = result.getOrNull() ?: 0
+                _snackbarMessage.emit(
+                    if (_settings.value.language == "bn")
+                        "ক্লাউড সিঙ্ক সফল হয়েছে ($count টি ডাটা সিঙ্ক হয়েছে)"
+                    else
+                        "Cloud sync complete ($count records synced)"
+                )
+            } else {
+                _snackbarMessage.emit(
+                    if (_settings.value.language == "bn")
+                        "সিঙ্ক ব্যর্থ হয়েছে: ${result.exceptionOrNull()?.localizedMessage ?: "নেটওয়ার্ক সমস্যা"}"
+                    else
+                        "Sync failed: ${result.exceptionOrNull()?.localizedMessage ?: "Network error"}"
+                )
+            }
+        }
     }
 
     fun ensureDefaultData() {
@@ -709,7 +748,15 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     dateTimestamp = System.currentTimeMillis(),
                     note = parsed.note
                 )
-                hisabRepository.insertTransaction(record)
+                val newId = hisabRepository.insertTransaction(record)
+                val savedRecord = record.copy(id = newId)
+                viewModelScope.launch {
+                    try {
+                        firestoreRepository.saveTransaction(user.id, savedRecord)
+                    } catch (e: Exception) {
+                        android.util.Log.w("HisabViewModel", "Firestore async save error: ${e.message}")
+                    }
+                }
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
             } catch (e: Exception) {
                 android.util.Log.e("HisabViewModel", "Failed to add parsed transaction: ${e.message}", e)
@@ -769,7 +816,15 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     receiptUri = receiptUri,
                     exchangeRate = exchangeRate
                 )
-                hisabRepository.insertTransaction(record)
+                val newId = hisabRepository.insertTransaction(record)
+                val savedRecord = record.copy(id = newId)
+                viewModelScope.launch {
+                    try {
+                        firestoreRepository.saveTransaction(user.id, savedRecord)
+                    } catch (e: Exception) {
+                        android.util.Log.w("HisabViewModel", "Firestore async save error: ${e.message}")
+                    }
+                }
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন সংরক্ষণ করা হয়েছে" else "Transaction saved successfully")
             } catch (e: Exception) {
                 android.util.Log.e("HisabViewModel", "Failed to insert transaction: ${e.message}", e)
@@ -809,6 +864,13 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     exchangeRate = exchangeRate
                 )
                 hisabRepository.updateTransaction(record)
+                viewModelScope.launch {
+                    try {
+                        firestoreRepository.updateTransaction(user.id, record)
+                    } catch (e: Exception) {
+                        android.util.Log.w("HisabViewModel", "Firestore async update error: ${e.message}")
+                    }
+                }
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন আপডেট করা হয়েছে" else "Transaction updated successfully")
             } catch (e: Exception) {
                 android.util.Log.e("HisabViewModel", "Failed to update transaction: ${e.message}", e)
@@ -822,15 +884,31 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             deletedTransactionUndo = tx
             hisabRepository.deleteTransaction(tx.id, user.id)
+            viewModelScope.launch {
+                try {
+                    firestoreRepository.deleteTransaction(user.id, tx.id)
+                } catch (e: Exception) {
+                    android.util.Log.w("HisabViewModel", "Firestore async delete error: ${e.message}")
+                }
+            }
             _snackbarMessage.emit("লেনদেন মুছে ফেলা হয়েছে")
         }
     }
 
     fun undoDeleteTransaction() {
         val tx = deletedTransactionUndo ?: return
+        val user = currentUser.value ?: return
         viewModelScope.launch {
-            hisabRepository.insertTransaction(tx.copy(id = 0))
+            val restoredId = hisabRepository.insertTransaction(tx.copy(id = 0))
+            val restored = tx.copy(id = restoredId)
             deletedTransactionUndo = null
+            viewModelScope.launch {
+                try {
+                    firestoreRepository.saveTransaction(user.id, restored)
+                } catch (e: Exception) {
+                    android.util.Log.w("HisabViewModel", "Firestore async undo save error: ${e.message}")
+                }
+            }
             _snackbarMessage.emit("লেনদেন পুনরুদ্ধার করা হয়েছে")
         }
     }

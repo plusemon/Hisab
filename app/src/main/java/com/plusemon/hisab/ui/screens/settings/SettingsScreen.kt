@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -374,6 +375,12 @@ fun SettingsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
+                    SettingsRowItem(
+                        icon = Icons.Default.CloudSync,
+                        title = if (isBn) "ক্লাউড সিঙ্ক (Firestore)" else "Cloud Sync (Firestore)",
+                        onClick = { viewModel.triggerManualSync() }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRowItem(
                         icon = Icons.Default.ContentCopy,
                         title = Localization.getString(Localization.Key.EXPORT_SUMMARY, isBn),

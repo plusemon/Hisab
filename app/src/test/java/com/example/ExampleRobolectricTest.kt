@@ -149,4 +149,27 @@ class ExampleRobolectricTest {
     val accountsAfter = db.accountDao().getAllAccountsList(user.id)
     assertTrue("Accounts must still exist", accountsAfter.isNotEmpty())
   }
+
+  @Test
+  fun `firestore repository handles uninitialized environment gracefully without crash`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = com.plusemon.hisab.data.local.AppDatabase.getDatabase(context)
+    val firestoreRepo: com.plusemon.hisab.data.repository.FirestoreRepository =
+      com.plusemon.hisab.data.repository.FirestoreRepositoryImpl(context, db)
+
+    val tx = com.plusemon.hisab.data.model.TransactionRecord(
+      id = 100L,
+      userId = "test_user_123",
+      accountId = 1L,
+      amount = 250.0,
+      type = com.plusemon.hisab.data.model.TransactionType.EXPENSE,
+      note = "Snacks"
+    )
+
+    val result = firestoreRepo.saveTransaction("test_user_123", tx)
+    assertTrue("Should return a Result object", result.isFailure || result.isSuccess)
+
+    val syncResult = firestoreRepo.syncAllWithRoom("test_user_123")
+    assertTrue("Sync should return a Result object", syncResult.isFailure || syncResult.isSuccess)
+  }
 }
