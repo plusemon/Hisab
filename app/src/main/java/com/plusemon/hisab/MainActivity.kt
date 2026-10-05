@@ -31,6 +31,7 @@ import com.plusemon.hisab.data.model.TransactionWithDetails
 import com.plusemon.hisab.ui.components.HisabBottomNav
 import com.plusemon.hisab.ui.components.HisabTopBar
 import com.plusemon.hisab.ui.components.PinLockScreen
+import com.plusemon.hisab.ui.components.UpdateDialog
 import com.plusemon.hisab.ui.navigation.Screen
 import com.plusemon.hisab.ui.screens.accounts.AccountsScreen
 import com.plusemon.hisab.ui.screens.auth.AuthScreen
@@ -113,6 +114,7 @@ fun HisabMainApp(
 ) {
     val settings by viewModel.settings.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val updateUiState by viewModel.updateUiState.collectAsState()
     val isBn = settings.language == "bn"
 
     var currentRoute by remember { mutableStateOf(Screen.Dashboard.route) }
@@ -132,6 +134,23 @@ fun HisabMainApp(
         selectedTransactionForEdit = null
     }
 
+    // App-wide in-app update dialog so checking, downloading progress, and ready alerts appear anywhere
+    UpdateDialog(
+        updateUiState = updateUiState,
+        isBangla = isBn,
+        onDownloadAndInstall = { info -> viewModel.downloadAndInstallUpdate(info) },
+        onDismiss = {
+            val info = (updateUiState as? com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available)?.updateInfo
+            if (info != null) {
+                viewModel.dismissUpdate(info.version)
+            } else {
+                viewModel.dismissUpdateState()
+            }
+        },
+        onEnablePermission = { viewModel.openInstallPermissionSettings() },
+        onRetryInstall = { info -> viewModel.retryInstall(info) }
+    )
+
     Scaffold(
         topBar = {
             if (!isSubscreen) {
@@ -140,7 +159,8 @@ fun HisabMainApp(
                     settings = settings,
                     onTogglePrivacy = { viewModel.toggleHideBalances() },
                     onToggleLanguage = { viewModel.toggleLanguage() },
-                    onProfileClick = { currentRoute = Screen.Settings.route }
+                    onProfileClick = { currentRoute = Screen.Settings.route },
+                    onSettingsClick = { currentRoute = Screen.Settings.route }
                 )
             }
         },
@@ -178,6 +198,7 @@ fun HisabMainApp(
                             onNavigateToAccounts = { currentRoute = Screen.Accounts.route },
                             onNavigateToBudgets = { currentRoute = Screen.BudgetsAndGoals.route },
                             onNavigateToDebts = { currentRoute = Screen.Debts.route },
+                            onNavigateToSettings = { currentRoute = Screen.Settings.route },
                             onTransactionClick = { txItem ->
                                 selectedTransactionForEdit = txItem
                                 currentRoute = Screen.AddEditTransaction.route

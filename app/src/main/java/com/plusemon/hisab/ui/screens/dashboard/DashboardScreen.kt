@@ -66,6 +66,8 @@ import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.UpdateCard
+import com.plusemon.hisab.ui.components.UpdateDownloadingCard
+import com.plusemon.hisab.ui.components.UpdateReadyCard
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.screens.nlp.QuickEntryDialog
@@ -85,6 +87,7 @@ fun DashboardScreen(
     onNavigateToBudgets: () -> Unit,
     onNavigateToDebts: () -> Unit,
     onTransactionClick: (TransactionWithDetails) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings by viewModel.settings.collectAsState()
@@ -128,15 +131,31 @@ fun DashboardScreen(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 80.dp)
     ) {
-        // Update Available Dismissible Card
-        if (updateUiState is com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available) {
-            val updateInfo = (updateUiState as com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available).updateInfo
-            UpdateCard(
-                updateInfo = updateInfo,
-                isBangla = isBn,
-                onDownloadAndInstall = { viewModel.downloadAndInstallUpdate(updateInfo) },
-                onLater = { viewModel.dismissUpdate(updateInfo.version) }
-            )
+        // In-App Updates Card (Available / Downloading Progress / Downloaded)
+        when (val state = updateUiState) {
+            is com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available -> {
+                UpdateCard(
+                    updateInfo = state.updateInfo,
+                    isBangla = isBn,
+                    onDownloadAndInstall = { viewModel.downloadAndInstallUpdate(state.updateInfo) },
+                    onLater = { viewModel.dismissUpdate(state.updateInfo.version) }
+                )
+            }
+            is com.plusemon.hisab.ui.viewmodel.UpdateUiState.Downloading -> {
+                UpdateDownloadingCard(
+                    updateInfo = state.updateInfo,
+                    progress = state.progress,
+                    isBangla = isBn
+                )
+            }
+            is com.plusemon.hisab.ui.viewmodel.UpdateUiState.Downloaded -> {
+                UpdateReadyCard(
+                    updateInfo = state.updateInfo,
+                    isBangla = isBn,
+                    onInstall = { viewModel.retryInstall(state.updateInfo) }
+                )
+            }
+            else -> {}
         }
 
         // Natural Language Quick Entry Search Pill

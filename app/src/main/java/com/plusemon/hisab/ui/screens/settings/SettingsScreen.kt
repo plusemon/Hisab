@@ -1,8 +1,5 @@
 package com.plusemon.hisab.ui.screens.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -26,13 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -74,7 +66,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.domain.util.VersionUtils
-import com.plusemon.hisab.ui.components.UpdateDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 
@@ -90,10 +81,8 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val isBn = settings.language == "bn"
     val currentUser by viewModel.currentUser.collectAsState()
-    val updateUiState by viewModel.updateUiState.collectAsState()
 
     var showPinDialog by remember { mutableStateOf(false) }
-    var showImportDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
 
@@ -106,18 +95,6 @@ fun SettingsScreen(
                 viewModel.setPin(pin)
                 showPinDialog = false
                 Toast.makeText(context, if (isBn) "পিন সুরক্ষা চালু হয়েছে" else "PIN lock enabled", Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    // Import CSV Dialog
-    if (showImportDialog) {
-        ImportCsvDialog(
-            isBangla = isBn,
-            onDismiss = { showImportDialog = false },
-            onImport = { csvContent ->
-                viewModel.importTransactionsFromCsv(csvContent)
-                showImportDialog = false
             }
         )
     }
@@ -173,23 +150,6 @@ fun SettingsScreen(
             }
         )
     }
-
-    // Check for Updates Dialog
-    UpdateDialog(
-        updateUiState = updateUiState,
-        isBangla = isBn,
-        onDownloadAndInstall = { info -> viewModel.downloadAndInstallUpdate(info) },
-        onDismiss = {
-            val info = (updateUiState as? com.plusemon.hisab.ui.viewmodel.UpdateUiState.Available)?.updateInfo
-            if (info != null) {
-                viewModel.dismissUpdate(info.version)
-            } else {
-                viewModel.dismissUpdateState()
-            }
-        },
-        onEnablePermission = { viewModel.openInstallPermissionSettings() },
-        onRetryInstall = { info -> viewModel.retryInstall(info) }
-    )
 
     Scaffold(
         topBar = {
@@ -352,61 +312,6 @@ fun SettingsScreen(
                         icon = Icons.Default.Repeat,
                         title = Localization.getString(Localization.Key.RECURRING_TRANSACTIONS, isBn),
                         onClick = onNavigateToRecurring
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section: Data & Backup
-            Text(
-                text = Localization.getString(Localization.Key.DATA_PORTABILITY, isBn),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column {
-                    SettingsRowItem(
-                        icon = Icons.Default.CloudSync,
-                        title = if (isBn) "ক্লাউড সিঙ্ক (Firestore)" else "Cloud Sync (Firestore)",
-                        onClick = { viewModel.triggerManualSync() }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRowItem(
-                        icon = Icons.Default.ContentCopy,
-                        title = Localization.getString(Localization.Key.EXPORT_SUMMARY, isBn),
-                        onClick = {
-                            val summary = viewModel.generateFinancialSummary()
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Hisab Summary", summary))
-                            Toast.makeText(context, if (isBn) "সারাংশ কপি করা হয়েছে" else "Summary copied to clipboard", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRowItem(
-                        icon = Icons.Default.FileDownload,
-                        title = Localization.getString(Localization.Key.EXPORT_CSV, isBn),
-                        onClick = {
-                            val csvData = viewModel.exportTransactionsCsv()
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Hisab CSV", csvData))
-                            Toast.makeText(context, if (isBn) "CSV ডাটা কপি করা হয়েছে" else "CSV data copied to clipboard", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRowItem(
-                        icon = Icons.Default.CloudUpload,
-                        title = Localization.getString(Localization.Key.IMPORT_CSV, isBn),
-                        onClick = { showImportDialog = true }
                     )
                 }
             }
@@ -599,70 +504,3 @@ fun SetPinDialog(
     }
 }
 
-@Composable
-fun ImportCsvDialog(
-    isBangla: Boolean,
-    onDismiss: () -> Unit,
-    onImport: (String) -> Unit
-) {
-    var rawCsvText by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    text = Localization.getString(Localization.Key.IMPORT_CSV, isBangla),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (isBangla) "CSV ডাটা নিচে পেস্ট করুন:" else "Paste CSV data below:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = rawCsvText,
-                    onValueChange = { rawCsvText = it },
-                    placeholder = { Text("ID,Date,Type,Amount,Currency,Account,ToAccount,Category,Fee,Note...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (rawCsvText.isNotBlank()) {
-                                onImport(rawCsvText.trim())
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(if (isBangla) "ইমপোর্ট করুন" else "Import", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
