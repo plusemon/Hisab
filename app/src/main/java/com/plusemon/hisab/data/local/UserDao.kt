@@ -22,8 +22,8 @@ interface UserDao {
     @Query("SELECT * FROM users")
     suspend fun getAllUsersDirect(): List<User>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUser(user: User)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertUser(user: User): Long
 
     @Update
     suspend fun updateUser(user: User)

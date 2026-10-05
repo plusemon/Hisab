@@ -105,7 +105,6 @@ class AuthRepository(
         }
 
         if (user != null) {
-            userDao.insertUser(user)
             ensureUserDataSeeded(user.id)
             saveSession(user)
         } else {

@@ -16,6 +16,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE userId = :userId ORDER BY createdAt ASC")
     fun getAllAccounts(userId: String): Flow<List<UserAccount>>
 
+    @Query("SELECT * FROM accounts WHERE userId = :userId ORDER BY createdAt ASC")
+    suspend fun getAllAccountsList(userId: String): List<UserAccount>
+
     @Query("SELECT * FROM accounts WHERE id = :accountId AND userId = :userId LIMIT 1")
     suspend fun getAccountById(accountId: Long, userId: String): UserAccount?
 
@@ -25,10 +28,10 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE userId = :userId AND isArchived = 0 LIMIT 1")
     suspend fun getFirstActiveAccount(userId: String): UserAccount?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAccount(account: UserAccount): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAccounts(accounts: List<UserAccount>)
 
     @Update

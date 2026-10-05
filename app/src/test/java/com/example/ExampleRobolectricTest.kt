@@ -98,4 +98,55 @@ class ExampleRobolectricTest {
     val currentSha1 = com.plusemon.hisab.domain.util.AuthDiagnostics.getCurrentAppSha1(context)
     assertTrue(currentSha1.isNotBlank())
   }
+
+  @Test
+  fun `data and transactions persist across app restarts without being wiped`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = com.plusemon.hisab.data.local.AppDatabase.getDatabase(context)
+    val authRepo = com.plusemon.hisab.data.repository.AuthRepository(context, db)
+    val hisabRepo = com.plusemon.hisab.data.repository.HisabRepository(db)
+
+    // Sign up a user
+    val signUpResult = authRepo.signUpWithEmail("Test User", "persist@example.com", "password123")
+    assertTrue(signUpResult is com.plusemon.hisab.data.repository.AuthResult.Success)
+    val user = (signUpResult as com.plusemon.hisab.data.repository.AuthResult.Success).user
+
+    // Ensure default accounts and categories are seeded
+    authRepo.ensureUserDataSeeded(user.id)
+    val accounts = db.accountDao().getAllAccountsList(user.id)
+    assertTrue("Accounts should exist", accounts.isNotEmpty())
+    val accountId = accounts.first().id
+
+    // Insert an income transaction
+    val transaction = com.plusemon.hisab.data.model.TransactionRecord(
+      userId = user.id,
+      accountId = accountId,
+      amount = 5000.0,
+      type = com.plusemon.hisab.data.model.TransactionType.INCOME,
+      note = "Salary entry"
+    )
+    val txId = hisabRepo.insertTransaction(transaction)
+    assertTrue("Transaction should be inserted", txId > 0)
+
+    val txListBefore = db.transactionDao().getAllTransactionsList(user.id)
+    assertEquals(1, txListBefore.size)
+    assertEquals(5000.0, txListBefore[0].amount, 0.001)
+
+    // SIMULATE APP RESTART: create new repository instances and load initial user
+    val newAuthRepo = com.plusemon.hisab.data.repository.AuthRepository(context, db)
+    newAuthRepo.loadInitialUser()
+
+    // Assert that the user is still logged in
+    val loadedUser = newAuthRepo.currentUser.value
+    assertTrue("User should still be logged in", loadedUser != null)
+    assertEquals(user.id, loadedUser?.id)
+
+    // Assert that transactions were NOT wiped out by CASCADE or REPLACE!
+    val txListAfter = db.transactionDao().getAllTransactionsList(user.id)
+    assertEquals("Transactions must persist across app restart", 1, txListAfter.size)
+    assertEquals(5000.0, txListAfter[0].amount, 0.001)
+
+    val accountsAfter = db.accountDao().getAllAccountsList(user.id)
+    assertTrue("Accounts must still exist", accountsAfter.isNotEmpty())
+  }
 }
