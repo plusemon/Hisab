@@ -10,19 +10,10 @@
         <aapt:attr name="android:fillColor">
             <gradient
                 android:angle="270"
-                android:startColor="#0A9B72"
-                android:centerColor="#057857"
-                android:endColor="#023D2E"
+                android:startColor="#009E74"
+                android:centerColor="#007B58"
+                android:endColor="#004A34"
                 android:type="linear" />
         </aapt:attr>
     </path>
-    <!-- Soft ambient glow at top-center -->
-    <path
-        android:fillColor="#34D399"
-        android:fillAlpha="0.22"
-        android:pathData="M54,20 A38,38 0 1,1 53.9,20 Z" />
-    <path
-        android:fillColor="#6EE7B7"
-        android:fillAlpha="0.12"
-        android:pathData="M54,12 A26,26 0 1,1 53.9,12 Z" />
 </vector>
