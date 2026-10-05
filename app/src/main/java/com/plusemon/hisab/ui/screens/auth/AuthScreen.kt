@@ -488,33 +488,6 @@ fun AuthScreen(
                         }
                     }
 
-                    // Help / Diagnostics prompt row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = { showDiagnosticDialog = true },
-                            modifier = Modifier.testTag("google_signin_help_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.HelpOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (isBn) "সাইন ইন সমস্যা? SHA-1 দেখুন" else "Trouble signing in? View SHA-1",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Row(

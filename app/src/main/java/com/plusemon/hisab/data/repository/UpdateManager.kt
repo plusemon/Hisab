@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.plusemon.hisab.data.model.UpdateInfo
+import com.plusemon.hisab.domain.util.VersionUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -27,7 +28,8 @@ class UpdateManager(private val context: Context) {
     }
 
     fun getTargetApkFile(version: String): File {
-        val fileName = "Hisab-v$version.apk"
+        val clean = VersionUtils.cleanVersion(version)
+        val fileName = "Hisab-v$clean.apk"
         return File(context.getExternalFilesDir(null), fileName)
     }
 
@@ -37,8 +39,9 @@ class UpdateManager(private val context: Context) {
             destinationFile.delete()
         }
 
+        val displayVer = VersionUtils.formatDisplayVersion(updateInfo.version)
         val request = DownloadManager.Request(Uri.parse(updateInfo.downloadUrl)).apply {
-            setTitle("Hisab v${updateInfo.version}")
+            setTitle("Hisab $displayVer")
             setDescription("Downloading app update...")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalFilesDir(context, null, destinationFile.name)

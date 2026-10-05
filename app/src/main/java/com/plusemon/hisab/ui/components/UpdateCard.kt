@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.plusemon.hisab.data.model.UpdateInfo
 import com.plusemon.hisab.domain.util.MarkdownUtils
+import com.plusemon.hisab.domain.util.VersionUtils
 
 @Composable
 fun UpdateCard(
@@ -60,8 +61,9 @@ fun UpdateCard(
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(modifier = Modifier.width(10.dp))
+                val displayVer = VersionUtils.formatDisplayVersion(updateInfo.version)
                 Text(
-                    text = if (isBangla) "নতুন আপডেট পাওয়া গেছে: v${updateInfo.version}" else "Update available: v${updateInfo.version}",
+                    text = if (isBangla) "নতুন আপডেট পাওয়া গেছে: $displayVer" else "Update available: $displayVer",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer

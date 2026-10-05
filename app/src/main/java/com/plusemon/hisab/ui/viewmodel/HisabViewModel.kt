@@ -1329,7 +1329,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             if (isManual) {
                 _updateUiState.value = UpdateUiState.Checking
             }
-            val currentVersion = com.plusemon.hisab.BuildConfig.VERSION_NAME
+            val currentVersion = VersionUtils.cleanVersion(com.plusemon.hisab.BuildConfig.VERSION_NAME)
             val release = updateRepository.fetchLatestRelease()
 
             if (release != null && VersionUtils.isVersionNewer(currentVersion, release.version)) {

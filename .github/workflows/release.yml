@@ -73,8 +73,7 @@ jobs:
           KEY_ALIAS: hisab
         run: |
           VERSION_TAG="${{ steps.version.outputs.version }}"
-          VERSION_NO_V="${VERSION_TAG#v}"
-          VERSION_NO_V="${VERSION_TAG#V}"
+          VERSION_NO_V=$(echo "$VERSION_TAG" | sed 's/^[vV]*//')
           ./gradlew assembleRelease -PversionCode=${{ github.run_number }} -PversionName=${VERSION_NO_V}
 
       - name: Rename APK

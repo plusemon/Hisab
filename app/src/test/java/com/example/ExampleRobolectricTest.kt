@@ -27,6 +27,21 @@ class ExampleRobolectricTest {
   fun `version comparison logic`() {
     assertTrue(VersionUtils.isVersionNewer("1.0.3", "1.0.5"))
     assertTrue(VersionUtils.isVersionNewer("1.0", "1.0.5"))
+    assertTrue(VersionUtils.isVersionNewer("v1.0.3", "v1.0.5"))
+    assertTrue(VersionUtils.isVersionNewer("vv1.0.3", "v1.0.5"))
+  }
+
+  @Test
+  fun `version cleaning and display formatting prevents duplicate v`() {
+    assertEquals("1.0.16", VersionUtils.cleanVersion("vv1.0.16"))
+    assertEquals("1.0.16", VersionUtils.cleanVersion("v1.0.16"))
+    assertEquals("1.0.16", VersionUtils.cleanVersion("V1.0.16"))
+    assertEquals("1.0.16", VersionUtils.cleanVersion("1.0.16"))
+
+    assertEquals("v1.0.16", VersionUtils.formatDisplayVersion("vv1.0.16"))
+    assertEquals("v1.0.16", VersionUtils.formatDisplayVersion("v1.0.16"))
+    assertEquals("v1.0.16", VersionUtils.formatDisplayVersion("V1.0.16"))
+    assertEquals("v1.0.16", VersionUtils.formatDisplayVersion("1.0.16"))
   }
 
   @Test
@@ -75,7 +90,8 @@ class ExampleRobolectricTest {
   fun `auth diagnostics identifies known hashes and formats correctly`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val knownHashes = com.plusemon.hisab.domain.util.AuthDiagnostics.KNOWN_FIREBASE_SHA1_HASHES
-    assertEquals(2, knownHashes.size)
+    assertTrue(knownHashes.size >= 3)
+    assertTrue(knownHashes.contains("71:D4:ED:DF:3C:4C:36:AC:A6:59:22:C5:A9:F9:74:B5:D2:EE:E3:91"))
     assertTrue(knownHashes.contains("A2:7F:46:52:5C:5E:1C:93:89:4F:07:C3:17:F9:83:B3:38:CE:51:0E"))
     assertEquals("41:33:99:F7:93:E1:54:93:B7:F9:15:4E:AC:08:B5:FA:24:19:3D:60", com.plusemon.hisab.domain.util.AuthDiagnostics.DEBUG_KEYSTORE_SHA1)
 

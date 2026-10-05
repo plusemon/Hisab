@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.domain.util.Localization
+import com.plusemon.hisab.domain.util.VersionUtils
 import com.plusemon.hisab.ui.components.UpdateDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
@@ -417,7 +418,7 @@ fun SettingsScreen(
                     SettingsRowItem(
                         icon = Icons.Default.SystemUpdate,
                         title = Localization.getString(Localization.Key.CHECK_UPDATES, isBn),
-                        value = "v${com.plusemon.hisab.BuildConfig.VERSION_NAME}",
+                        value = VersionUtils.formatDisplayVersion(com.plusemon.hisab.BuildConfig.VERSION_NAME),
                         onClick = { viewModel.checkForUpdates(isManual = true) }
                     )
                 }

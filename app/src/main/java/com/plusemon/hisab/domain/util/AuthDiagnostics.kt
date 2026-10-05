@@ -9,6 +9,7 @@ object AuthDiagnostics {
 
     // Known SHA-1 hashes registered in Firebase for hisab-app-161ed
     val KNOWN_FIREBASE_SHA1_HASHES = listOf(
+        "71:D4:ED:DF:3C:4C:36:AC:A6:59:22:C5:A9:F9:74:B5:D2:EE:E3:91", // Device release / install key
         "A2:7F:46:52:5C:5E:1C:93:89:4F:07:C3:17:F9:83:B3:38:CE:51:0E", // Release key 1
         "96:51:7E:55:07:33:3F:1C:F9:50:FA:78:C1:59:B7:6A:CE:27:A2:5D", // Release key 2
     )

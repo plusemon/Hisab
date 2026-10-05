@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.data.model.UpdateInfo
 import com.plusemon.hisab.domain.util.MarkdownUtils
+import com.plusemon.hisab.domain.util.VersionUtils
 import com.plusemon.hisab.ui.viewmodel.UpdateUiState
 
 @Composable
@@ -86,11 +87,12 @@ fun UpdateDialog(
                     )
                 },
                 text = {
+                    val displayVer = VersionUtils.formatDisplayVersion(updateUiState.currentVersion)
                     Text(
                         text = if (isBangla)
-                            "আপনি হিসাব-এর সর্বশেষ সংস্করণ (v${updateUiState.currentVersion}) ব্যবহার করছেন।"
+                            "আপনি হিসাব-এর সর্বশেষ সংস্করণ ($displayVer) ব্যবহার করছেন।"
                         else
-                            "You are using the latest version of Hisab (v${updateUiState.currentVersion})."
+                            "You are using the latest version of Hisab ($displayVer)."
                     )
                 },
                 confirmButton = {
@@ -113,8 +115,9 @@ fun UpdateDialog(
                     )
                 },
                 title = {
+                    val displayVer = VersionUtils.formatDisplayVersion(info.version)
                     Text(
-                        text = if (isBangla) "নতুন আপডেট এসেছে: v${info.version}" else "Update available: v${info.version}",
+                        text = if (isBangla) "নতুন আপডেট এসেছে: $displayVer" else "Update available: $displayVer",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -171,8 +174,9 @@ fun UpdateDialog(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(12.dp))
+                        val displayVer = VersionUtils.formatDisplayVersion(updateUiState.updateInfo.version)
                         Text(
-                            text = if (isBangla) "ডাউনলোড হচ্ছে: v${updateUiState.updateInfo.version}" else "Downloading v${updateUiState.updateInfo.version}...",
+                            text = if (isBangla) "ডাউনলোড হচ্ছে: $displayVer" else "Downloading $displayVer...",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -248,17 +252,19 @@ fun UpdateDialog(
                     )
                 },
                 title = {
+                    val displayVer = VersionUtils.formatDisplayVersion(info.version)
                     Text(
-                        text = if (isBangla) "আপডেট প্রস্তুত: v${info.version}" else "Update Ready: v${info.version}",
+                        text = if (isBangla) "আপডেট প্রস্তুত: $displayVer" else "Update Ready: $displayVer",
                         fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
+                    val displayVer = VersionUtils.formatDisplayVersion(info.version)
                     Text(
                         text = if (isBangla)
                             "নতুন ভার্সন ফাইল ডাউনলোড সম্পন্ন হয়েছে। এখনই ইন্সটল করতে নিচের বাটনে ট্যাপ করুন।"
                         else
-                            "The update v${info.version} has been downloaded and is ready to install."
+                            "The update $displayVer has been downloaded and is ready to install."
                     )
                 },
                 confirmButton = {
