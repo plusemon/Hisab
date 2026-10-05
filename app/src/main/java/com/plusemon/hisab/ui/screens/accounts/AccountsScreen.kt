@@ -74,6 +74,7 @@ import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
@@ -133,37 +134,20 @@ fun AccountsScreen(
 
     if (accountToDelete != null) {
         val target = accountToDelete!!
-        AlertDialog(
-            onDismissRequest = { accountToDelete = null },
-            title = {
-                Text(
-                    text = if (isBn) "অ্যাকাউন্ট মুছে ফেলবেন?" else "Delete Account?",
-                    fontWeight = FontWeight.Bold
-                )
+        DeleteConfirmationDialog(
+            title = if (isBn) "অ্যাকাউন্ট মুছে ফেলবেন?" else "Delete Account?",
+            message = if (isBn)
+                "আপনি কি নিশ্চিত যে '${target.name}' অ্যাকাউন্টটি মুছে ফেলতে চান? যদি এতে কোনো পূর্ববর্তী লেনদেন থাকে তবে এটি মোছা যাবে না (সেক্ষেত্রে অ্যাকাউন্টটি আর্কাইভ রাখতে পারেন)।"
+            else
+                "Are you sure you want to delete '${target.name}'? If it contains past transactions, it cannot be deleted and should remain archived.",
+            itemDetail = "${target.name} • ${if (isBn) target.type.labelBn else target.type.labelEn}",
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteAccount(target.id)
+                accountToDelete = null
             },
-            text = {
-                Text(
-                    text = if (isBn)
-                        "আপনি কি নিশ্চিত যে '${target.name}' অ্যাকাউন্টটি মুছে ফেলতে চান? যদি এতে কোনো পূর্ববর্তী লেনদেন থাকে তবে এটি মোছা যাবে না (সেক্ষেত্রে অ্যাকাউন্টটি আর্কাইভ রাখতে পারেন)।"
-                    else
-                        "Are you sure you want to delete '${target.name}'? If it contains past transactions, it cannot be deleted and should remain archived."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteAccount(target.id)
-                        accountToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
-                ) {
-                    Text(if (isBn) "মুছে ফেলুন" else "Delete", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { accountToDelete = null }) {
-                    Text(Localization.getString(Localization.Key.CANCEL, isBn))
-                }
+            onDismiss = {
+                accountToDelete = null
             }
         )
     }

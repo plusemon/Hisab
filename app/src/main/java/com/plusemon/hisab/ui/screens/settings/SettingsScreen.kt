@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.domain.util.VersionUtils
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 
@@ -101,52 +102,37 @@ fun SettingsScreen(
 
     // Clear Data Confirmation Dialog
     if (showClearDataDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDataDialog = false },
-            title = { Text(if (isBn) "সব তথ্য মুছুন?" else "Clear All Data?", fontWeight = FontWeight.Bold) },
-            text = { Text(if (isBn) "আপনার সব লেনদেন, বাজেট এবং হিসাব মুছে যাবে।" else "All your transactions, budgets and records will be deleted.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearAllData()
-                        showClearDataDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(Localization.getString(Localization.Key.DELETE, isBn), fontWeight = FontWeight.Bold)
-                }
+        DeleteConfirmationDialog(
+            title = if (isBn) "সব তথ্য মুছে ফেলবেন?" else "Clear All Data?",
+            message = if (isBn)
+                "আপনার সমস্ত লেনদেন, অ্যাকাউন্ট, বাজেট, দেনা-পাওনা ও সঞ্চয় লক্ষ্য মুছে ফেলা হবে। এই কাজটি পুনরায় ফিরিয়ে আনা যাবে না।"
+            else
+                "All your transactions, accounts, budgets, debts and savings goals will be permanently deleted. This action cannot be undone.",
+            itemDetail = if (isBn) "সতর্কতা: সমস্ত ডেটা রিসেট হয়ে যাবে" else "Warning: All local and synced data will be wiped",
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.clearAllData()
+                showClearDataDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showClearDataDialog = false }) {
-                    Text(Localization.getString(Localization.Key.CANCEL, isBn))
-                }
+            onDismiss = {
+                showClearDataDialog = false
             }
         )
     }
 
     // Delete Account Confirmation Dialog
     if (showDeleteAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text(Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn), fontWeight = FontWeight.Bold) },
-            text = { Text(Localization.getString(Localization.Key.DELETE_ACCOUNT_CONFIRM, isBn)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteAccount()
-                        showDeleteAccountDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(Localization.getString(Localization.Key.DELETE, isBn), fontWeight = FontWeight.Bold)
-                }
+        DeleteConfirmationDialog(
+            title = Localization.getString(Localization.Key.DELETE_ACCOUNT, isBn),
+            message = Localization.getString(Localization.Key.DELETE_ACCOUNT_CONFIRM, isBn),
+            itemDetail = currentUser?.email ?: (if (isBn) "বর্তমান অ্যাকাউন্ট" else "Current Account"),
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteAccount()
+                showDeleteAccountDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) {
-                    Text(Localization.getString(Localization.Key.CANCEL, isBn))
-                }
+            onDismiss = {
+                showDeleteAccountDialog = false
             }
         )
     }

@@ -172,4 +172,35 @@ class ExampleRobolectricTest {
     val syncResult = firestoreRepo.syncAllWithRoom("test_user_123")
     assertTrue("Sync should return a Result object", syncResult.isFailure || syncResult.isSuccess)
   }
+
+  @Test
+  fun `delete transaction and item deletion behavior`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = com.plusemon.hisab.data.local.AppDatabase.getDatabase(context)
+    val authRepo = com.plusemon.hisab.data.repository.AuthRepository(context, db)
+    val hisabRepo = com.plusemon.hisab.data.repository.HisabRepository(db)
+
+    val signUpResult = authRepo.signUpWithEmail("Delete Test", "delete_test@example.com", "pass123")
+    assertTrue(signUpResult is com.plusemon.hisab.data.repository.AuthResult.Success)
+    val user = (signUpResult as com.plusemon.hisab.data.repository.AuthResult.Success).user
+
+    authRepo.ensureUserDataSeeded(user.id)
+    val accounts = db.accountDao().getAllAccountsList(user.id)
+    assertTrue(accounts.isNotEmpty())
+    val accountId = accounts.first().id
+
+    val tx = com.plusemon.hisab.data.model.TransactionRecord(
+      userId = user.id,
+      accountId = accountId,
+      amount = 750.0,
+      type = com.plusemon.hisab.data.model.TransactionType.EXPENSE,
+      note = "Dinner"
+    )
+    val id = hisabRepo.insertTransaction(tx)
+    assertTrue(id > 0)
+
+    hisabRepo.deleteTransaction(id, user.id)
+    val allTxs = db.transactionDao().getAllTransactionsList(user.id)
+    assertTrue(allTxs.none { it.id == id })
+  }
 }

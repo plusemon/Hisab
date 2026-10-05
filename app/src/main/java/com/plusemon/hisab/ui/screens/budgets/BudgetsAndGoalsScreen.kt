@@ -76,6 +76,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
@@ -102,6 +103,7 @@ fun BudgetsAndGoalsScreen(
     val overallBudgetProgress by viewModel.overallBudgetProgress.collectAsState()
     val savingsGoals by viewModel.savingsGoals.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    val budgets by viewModel.budgets.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) } // 0: Budgets, 1: Savings Goals
 
@@ -109,8 +111,62 @@ fun BudgetsAndGoalsScreen(
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var adjustingGoal by remember { mutableStateOf<SavingsGoal?>(null) }
     var isDepositMode by remember { mutableStateOf(true) }
+    var goalToDelete by remember { mutableStateOf<SavingsGoal?>(null) }
+    var budgetToDelete by remember { mutableStateOf<CategorySpendProgress?>(null) }
 
     // Dialogs
+    if (goalToDelete != null) {
+        val target = goalToDelete!!
+        val amountStr = Formatters.formatAmount(target.targetAmount, currSymbol, useBnDigits)
+        DeleteConfirmationDialog(
+            title = if (isBn) "সঞ্চয় লক্ষ্য মুছে ফেলবেন?" else "Delete Savings Goal?",
+            message = if (isBn)
+                "আপনি কি নিশ্চিত যে '${target.name}' সঞ্চয় লক্ষ্যটি মুছে ফেলতে চান?"
+            else
+                "Are you sure you want to delete the savings goal '${target.name}'?",
+            itemDetail = "${target.name} • ${if (isBn) "লক্ষ্যমাত্রা:" else "Target:"} $amountStr",
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteSavingsGoal(target.id)
+                goalToDelete = null
+            },
+            onDismiss = {
+                goalToDelete = null
+            }
+        )
+    }
+
+    if (budgetToDelete != null) {
+        val target = budgetToDelete!!
+        val isOverall = target.category.id == 0L || target.budgetLimit == overallBudgetProgress?.budgetLimit && target.category.nameEn == "Overall Budget"
+        val matchedBudget = if (isOverall) {
+            budgets.firstOrNull { it.categoryId == null }
+        } else {
+            budgets.firstOrNull { it.categoryId == target.category.id }
+        }
+        val budgetTitle = if (isOverall) (if (isBn) "মোট বাজেট" else "Overall Budget") else target.category.localizedName(isBn)
+        val limitStr = Formatters.formatAmount(target.budgetLimit ?: 0.0, currSymbol, useBnDigits)
+
+        DeleteConfirmationDialog(
+            title = if (isBn) "বাজেট মুছে ফেলবেন?" else "Delete Budget?",
+            message = if (isBn)
+                "আপনি কি নিশ্চিত যে '$budgetTitle'-এর বাজেট মুছে ফেলতে চান?"
+            else
+                "Are you sure you want to delete the budget for '$budgetTitle'?",
+            itemDetail = "$budgetTitle • ${if (isBn) "সীমা:" else "Limit:"} $limitStr",
+            isBangla = isBn,
+            onConfirm = {
+                if (matchedBudget != null) {
+                    viewModel.deleteBudget(matchedBudget.id)
+                }
+                budgetToDelete = null
+            },
+            onDismiss = {
+                budgetToDelete = null
+            }
+        )
+    }
+
     if (showAddBudgetDialog) {
         AddEditBudgetDialog(
             categories = categories.filter { it.type == TransactionType.EXPENSE },
@@ -223,7 +279,8 @@ fun BudgetsAndGoalsScreen(
                                 isBangla = isBn,
                                 useBnDigits = useBnDigits,
                                 hideBalances = hideBalances,
-                                currSymbol = currSymbol
+                                currSymbol = currSymbol,
+                                onDelete = { budgetToDelete = overallBudgetProgress }
                             )
                         }
                     }
@@ -262,7 +319,8 @@ fun BudgetsAndGoalsScreen(
                                 isBangla = isBn,
                                 useBnDigits = useBnDigits,
                                 hideBalances = hideBalances,
-                                currSymbol = currSymbol
+                                currSymbol = currSymbol,
+                                onDelete = { budgetToDelete = item }
                             )
                         }
                     }
@@ -299,7 +357,7 @@ fun BudgetsAndGoalsScreen(
                                     adjustingGoal = goal
                                     isDepositMode = false
                                 },
-                                onDelete = { viewModel.deleteSavingsGoal(goal.id) }
+                                onDelete = { goalToDelete = goal }
                             )
                         }
                     }
@@ -315,7 +373,8 @@ fun OverallBudgetCard(
     isBangla: Boolean,
     useBnDigits: Boolean,
     hideBalances: Boolean,
-    currSymbol: String
+    currSymbol: String,
+    onDelete: (() -> Unit)? = null
 ) {
     val statusColor = when (progress.status) {
         BudgetStatus.EXCEEDED -> ExpenseRed
@@ -346,21 +405,38 @@ fun OverallBudgetCard(
                     fontWeight = FontWeight.Bold
                 )
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = statusColor.copy(alpha = 0.15f)
-                ) {
-                    Text(
-                        text = when (progress.status) {
-                            BudgetStatus.EXCEEDED -> Localization.getString(Localization.Key.BUDGET_EXCEEDED, isBangla)
-                            BudgetStatus.WARNING -> Localization.getString(Localization.Key.BUDGET_WARNING, isBangla)
-                            else -> Localization.getString(Localization.Key.BUDGET_SAFE, isBangla)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = statusColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = statusColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = when (progress.status) {
+                                BudgetStatus.EXCEEDED -> Localization.getString(Localization.Key.BUDGET_EXCEEDED, isBangla)
+                                BudgetStatus.WARNING -> Localization.getString(Localization.Key.BUDGET_WARNING, isBangla)
+                                else -> Localization.getString(Localization.Key.BUDGET_SAFE, isBangla)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (onDelete != null) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Budget",
+                                tint = ExpenseRed.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -426,7 +502,8 @@ fun CategoryBudgetProgressItem(
     isBangla: Boolean,
     useBnDigits: Boolean,
     hideBalances: Boolean,
-    currSymbol: String
+    currSymbol: String,
+    onDelete: (() -> Unit)? = null
 ) {
     val statusColor = when (progress.status) {
         BudgetStatus.EXCEEDED -> ExpenseRed
@@ -474,12 +551,29 @@ fun CategoryBudgetProgressItem(
                     )
                 }
 
-                Text(
-                    text = "${(progress.percentage * 100).toInt()}%",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = statusColor
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${(progress.percentage * 100).toInt()}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+
+                    if (onDelete != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Budget",
+                                tint = ExpenseRed.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

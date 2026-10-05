@@ -88,6 +88,7 @@ import com.plusemon.hisab.data.model.Vendor
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
@@ -123,6 +124,30 @@ fun DebtsScreen(
 
     var showAddCreditDialog by remember { mutableStateOf(false) }
     var settlingVendor by remember { mutableStateOf<Vendor?>(null) }
+    var debtToDelete by remember { mutableStateOf<LoanDebt?>(null) }
+
+    if (debtToDelete != null) {
+        val target = debtToDelete!!
+        val amountStr = Formatters.formatAmount(target.remainingAmount, currSymbol, useBnDigits)
+        val personOrNote = target.personName + (if (target.note.isNotBlank()) " • " + target.note else "")
+        val typeLabel = if (target.type == DebtType.OWED_TO_ME) (if (isBn) "পাওনা" else "Receivable") else (if (isBn) "দেনা" else "Payable")
+        DeleteConfirmationDialog(
+            title = if (isBn) "ধার/দেনার হিসাব মুছে ফেলবেন?" else "Delete Loan/Debt Entry?",
+            message = if (isBn)
+                "আপনি কি নিশ্চিত যে এই ধার/দেনার এন্ট্রিটি মুছে ফেলতে চান?"
+            else
+                "Are you sure you want to delete this loan/debt record?",
+            itemDetail = "$personOrNote • $typeLabel: $amountStr",
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteLoanDebt(target.id)
+                debtToDelete = null
+            },
+            onDismiss = {
+                debtToDelete = null
+            }
+        )
+    }
 
     val totalOwedToMe = allDebts.filter { it.type == DebtType.OWED_TO_ME && !it.isSettled }.sumOf { it.remainingAmount }
     val totalIOwe = allDebts.filter { it.type == DebtType.I_OWE && !it.isSettled }.sumOf { it.remainingAmount }
@@ -304,7 +329,7 @@ fun DebtsScreen(
                     hideBalances = hideBalances,
                     currencySymbol = currSymbol,
                     onRecordPayment = { debt -> recordingPaymentDebt = debt },
-                    onDeleteDebt = { debtId -> viewModel.deleteLoanDebt(debtId) },
+                    onDeleteDebt = { debt -> debtToDelete = debt },
                     onAddEntryClick = { showAddLoanDialog = true }
                 )
             } else if (selectedVendorId != null && activeVendor != null) {
@@ -548,7 +573,7 @@ fun ContactLedgerContent(
     hideBalances: Boolean,
     currencySymbol: String,
     onRecordPayment: (LoanDebt) -> Unit,
-    onDeleteDebt: (Long) -> Unit,
+    onDeleteDebt: (LoanDebt) -> Unit,
     onAddEntryClick: () -> Unit
 ) {
     val isBn = isBangla
@@ -652,7 +677,7 @@ fun ContactLedgerContent(
                         hideBalances = hideBalances,
                         currencySymbol = currencySymbol,
                         onRecordPayment = { onRecordPayment(debt) },
-                        onDelete = { onDeleteDebt(debt.id) }
+                        onDelete = { onDeleteDebt(debt) }
                     )
                 }
             }

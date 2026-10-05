@@ -79,6 +79,7 @@ import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.ExpenseRed
@@ -189,6 +190,27 @@ fun AddEditTransactionScreen(
     }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation && existingTransaction != null) {
+        val amountStr = Formatters.formatAmount(existingTransaction.transaction.amount, currSymbol, isBn)
+        val catOrAcc = existingTransaction.category?.localizedName(isBn) ?: existingTransaction.account.name
+        val detail = "$amountStr • $catOrAcc${if (existingTransaction.transaction.note.isNotBlank()) " • " + existingTransaction.transaction.note else ""}"
+        DeleteConfirmationDialog(
+            title = if (isBn) "লেনদেন মুছে ফেলবেন?" else "Delete Transaction?",
+            message = if (isBn) "আপনি কি নিশ্চিত যে এই লেনদেনটি মুছে ফেলতে চান? লেনদেনটি মুছে ফেললে ব্যালেন্স স্বয়ংক্রিয়ভাবে পুনর্গণনা করা হবে।" else "Are you sure you want to delete this transaction? Balance will be updated automatically.",
+            itemDetail = detail,
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteTransaction(existingTransaction.transaction)
+                showDeleteConfirmation = false
+                onNavigateBack()
+            },
+            onDismiss = {
+                showDeleteConfirmation = false
+            }
+        )
+    }
 
     // Photo picker launcher (Zero-permission Android Photo Picker)
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -225,8 +247,7 @@ fun AddEditTransactionScreen(
                     if (existingTransaction != null) {
                         IconButton(
                             onClick = {
-                                viewModel.deleteTransaction(existingTransaction.transaction)
-                                onNavigateBack()
+                                showDeleteConfirmation = true
                             }
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = ExpenseRed)

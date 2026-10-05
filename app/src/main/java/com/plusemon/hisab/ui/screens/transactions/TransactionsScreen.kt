@@ -55,6 +55,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
@@ -80,6 +81,27 @@ fun TransactionsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf<TransactionType?>(null) }
     var selectedPeriodFilter by remember { mutableStateOf("THIS_MONTH") }
+    var txToDelete by remember { mutableStateOf<TransactionWithDetails?>(null) }
+
+    if (txToDelete != null) {
+        val target = txToDelete!!
+        val amountStr = Formatters.formatAmount(target.transaction.amount, currSymbol, useBnDigits)
+        val catOrAcc = target.category?.localizedName(isBn) ?: target.account.name
+        val detail = "$amountStr • $catOrAcc${if (target.transaction.note.isNotBlank()) " • " + target.transaction.note else ""}"
+        DeleteConfirmationDialog(
+            title = if (isBn) "লেনদেন মুছে ফেলবেন?" else "Delete Transaction?",
+            message = if (isBn) "আপনি কি নিশ্চিত যে এই লেনদেনটি মুছে ফেলতে চান? লেনদেনটি মুছে ফেললে মোট ব্যালেন্স সেই অনুযায়ী সমন্বয় হবে।" else "Are you sure you want to delete this transaction? Your total balance will be updated accordingly.",
+            itemDetail = detail,
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteTransaction(target.transaction)
+                txToDelete = null
+            },
+            onDismiss = {
+                txToDelete = null
+            }
+        )
+    }
 
     // Filter logic
     val filteredTransactions = remember(allTransactions, searchQuery, selectedTypeFilter, selectedPeriodFilter) {
@@ -297,8 +319,8 @@ fun TransactionsScreen(
                             val dismissState = rememberDismissState(
                                 confirmStateChange = { dismissValue ->
                                     if (dismissValue == DismissValue.DismissedToStart) {
-                                        viewModel.deleteTransaction(txItem.transaction)
-                                        true
+                                        txToDelete = txItem
+                                        false
                                     } else false
                                 }
                             )

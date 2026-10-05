@@ -62,6 +62,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
@@ -84,6 +85,34 @@ fun RecurringScreen(
     val categories by viewModel.categories.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var ruleToDelete by remember { mutableStateOf<RecurringRule?>(null) }
+
+    if (ruleToDelete != null) {
+        val target = ruleToDelete!!
+        val cat = categories.firstOrNull { it.id == target.categoryId }
+        val acc = accountsWithBalances.firstOrNull { it.account.id == target.accountId }?.account
+        val amountStr = Formatters.formatAmount(target.amount, currSymbol, useBnDigits)
+        val catOrAcc = cat?.localizedName(isBn) ?: acc?.name ?: (if (isBn) "সাধারণ" else "General")
+        val freqLabel = if (isBn) target.frequency.labelBn else target.frequency.labelEn
+        val detail = "$catOrAcc • $freqLabel • $amountStr"
+
+        DeleteConfirmationDialog(
+            title = if (isBn) "স্বয়ংক্রিয় নিয়ম মুছে ফেলবেন?" else "Delete Recurring Rule?",
+            message = if (isBn)
+                "আপনি কি নিশ্চিত যে এই স্বয়ংক্রিয় লেনদেনের নিয়মটি মুছে ফেলতে চান?"
+            else
+                "Are you sure you want to delete this recurring transaction rule?",
+            itemDetail = detail,
+            isBangla = isBn,
+            onConfirm = {
+                viewModel.deleteRecurringRule(target.id)
+                ruleToDelete = null
+            },
+            onDismiss = {
+                ruleToDelete = null
+            }
+        )
+    }
 
     if (showAddDialog) {
         AddRecurringRuleDialog(
@@ -238,7 +267,7 @@ fun RecurringScreen(
                                         }
 
                                         IconButton(
-                                            onClick = { viewModel.deleteRecurringRule(rule.id) },
+                                            onClick = { ruleToDelete = rule },
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
