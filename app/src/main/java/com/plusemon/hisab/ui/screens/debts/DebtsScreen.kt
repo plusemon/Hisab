@@ -2,6 +2,7 @@ package com.plusemon.hisab.ui.screens.debts
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -234,34 +236,37 @@ fun DebtsScreen(
         )
     }
 
+    BackHandler(enabled = selectedContactId != null || selectedVendorId != null) {
+        selectedContactId = null
+        selectedVendorId = null
+    }
+
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when {
-                            selectedContactId != null && activeContact != null -> activeContact.name
-                            selectedVendorId != null && activeVendor != null -> activeVendor.name
-                            else -> if (isBn) "ধার ও বাকি ব্যবস্থাপনা" else "Lending & Shop Credit"
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    if (selectedContactId != null || selectedVendorId != null) {
+            if (selectedContactId != null || selectedVendorId != null) {
+                TopAppBar(
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    title = {
+                        Text(
+                            text = when {
+                                selectedContactId != null && activeContact != null -> activeContact.name
+                                selectedVendorId != null && activeVendor != null -> activeVendor.name
+                                else -> ""
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
                         IconButton(onClick = {
                             selectedContactId = null
                             selectedVendorId = null
                         }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    } else {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
                     }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
             if (selectedContactId == null && selectedVendorId == null) {
