@@ -1158,6 +1158,13 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateContact(contact: Contact) {
+        viewModelScope.launch {
+            hisabRepository.updateContact(contact)
+            _snackbarMessage.emit("কন্টাক্টের তথ্য আপডেট করা হয়েছে")
+        }
+    }
+
     fun addLoanDebt(
         contactId: Long,
         personName: String,

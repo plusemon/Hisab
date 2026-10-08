@@ -249,6 +249,10 @@ class HisabRepository(
         contactDao.insertContact(contact)
     }
 
+    suspend fun updateContact(contact: Contact) = withContext(Dispatchers.IO) {
+        contactDao.updateContact(contact)
+    }
+
     suspend fun deleteContact(id: Long, userId: String) = withContext(Dispatchers.IO) {
         contactDao.deleteContact(id, userId)
     }
@@ -259,11 +263,27 @@ class HisabRepository(
 
     suspend fun addLoanDebt(debt: LoanDebt): Long = withContext(Dispatchers.IO) {
         var cId = debt.contactId
-        if (cId == 0L && debt.personName.isNotBlank()) {
-            val newContact = Contact(userId = debt.userId, name = debt.personName, phone = debt.phone)
-            cId = contactDao.insertContact(newContact)
+        val trimmedName = debt.personName.trim()
+        val trimmedPhone = debt.phone.trim()
+
+        if (cId == 0L && trimmedName.isNotBlank()) {
+            val existingContact = contactDao.getContactByName(trimmedName, debt.userId)
+            if (existingContact != null) {
+                cId = existingContact.id
+                if (trimmedPhone.isNotBlank() && (existingContact.phone.isBlank() || existingContact.phone != trimmedPhone)) {
+                    contactDao.updateContact(existingContact.copy(phone = trimmedPhone))
+                }
+            } else {
+                val newContact = Contact(userId = debt.userId, name = trimmedName, phone = trimmedPhone)
+                cId = contactDao.insertContact(newContact)
+            }
+        } else if (cId != 0L && trimmedPhone.isNotBlank()) {
+            val existing = contactDao.getContactById(cId, debt.userId)
+            if (existing != null && (existing.phone.isBlank() || existing.phone != trimmedPhone)) {
+                contactDao.updateContact(existing.copy(phone = trimmedPhone))
+            }
         }
-        val finalDebt = debt.copy(contactId = cId)
+        val finalDebt = debt.copy(contactId = cId, personName = trimmedName, phone = trimmedPhone)
         loanDebtDao.insertDebt(finalDebt)
     }
 

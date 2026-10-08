@@ -1,8 +1,15 @@
 package com.plusemon.hisab.ui.screens.debts
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,8 +38,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContactPhone
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.People
@@ -58,6 +69,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
+import com.plusemon.hisab.domain.util.ContactPhoneOption
+import com.plusemon.hisab.domain.util.ContactUtils
+import com.plusemon.hisab.domain.util.SelectContactPhoneDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -355,7 +370,10 @@ fun DebtsScreen(
                     currencySymbol = currSymbol,
                     onRecordPayment = { debt -> recordingPaymentDebt = debt },
                     onDeleteDebt = { debt -> debtToDelete = debt },
-                    onAddEntryClick = { showAddLoanDialog = true }
+                    onAddEntryClick = { showAddLoanDialog = true },
+                    onUpdateContactPhone = { updatedContact, newPhone ->
+                        viewModel.updateContact(updatedContact.copy(phone = newPhone))
+                    }
                 )
             } else if (selectedVendorId != null && activeVendor != null) {
                 VendorLedgerContent(
@@ -560,6 +578,22 @@ fun DebtsOverviewContent(
                                 }
                             }
 
+                            if (contact.phone.isNotBlank()) {
+                                val context = LocalContext.current
+                                IconButton(
+                                    onClick = { ContactUtils.dialPhoneNumber(context, contact.phone, isBn) },
+                                    modifier = Modifier.size(36.dp).testTag("quick_call_${contact.id}")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Call,
+                                        contentDescription = if (isBn) "কল করুন" else "Call",
+                                        tint = IncomeGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+
                             Column(horizontalAlignment = Alignment.End) {
                                 CurrencyAmountText(
                                     amount = kotlin.math.abs(net),
@@ -590,6 +624,144 @@ fun DebtsOverviewContent(
 }
 
 @Composable
+fun EditContactPhoneDialog(
+    contact: Contact,
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var phone by remember { mutableStateOf(contact.phone) }
+    var phoneOptionsForSelection by remember { mutableStateOf<List<ContactPhoneOption>?>(null) }
+    var pendingContactName by remember { mutableStateOf("") }
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val result = ContactUtils.extractContact(context, uri)
+            if (result != null) {
+                when {
+                    result.phones.isEmpty() -> {
+                        Toast.makeText(
+                            context,
+                            if (isBangla) "এই কন্টাক্টে কোনো ফোন নম্বর পাওয়া যায়নি" else "No phone numbers found in this contact",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    result.phones.size == 1 -> {
+                        phone = result.phones.first().rawNumber
+                    }
+                    else -> {
+                        pendingContactName = result.name
+                        phoneOptionsForSelection = result.phones
+                    }
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        contactPickerLauncher.launch(null)
+    }
+
+    val onPickContact = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        } else {
+            contactPickerLauncher.launch(null)
+        }
+    }
+
+    if (phoneOptionsForSelection != null) {
+        SelectContactPhoneDialog(
+            contactName = pendingContactName,
+            options = phoneOptionsForSelection!!,
+            isBangla = isBangla,
+            onSelectPhone = { selected ->
+                phone = selected.rawNumber
+                phoneOptionsForSelection = null
+            },
+            onDismiss = {
+                phoneOptionsForSelection = null
+            }
+        )
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                Text(
+                    text = if (isBangla) "ফোন নম্বর পরিবর্তন / যুক্ত করুন" else "Update Phone Number",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = contact.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedButton(
+                    onClick = onPickContact,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.ContactPhone, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isBangla) "ফোনের কন্টাক্ট থেকে চুজ করুন" else "Pick from Phone Contacts")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (isBangla) "মোবাইল নম্বর" else "Phone Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (isBangla) "বাতিল" else "Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            onSave(phone.trim())
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (isBangla) "সংরক্ষণ" else "Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ContactLedgerContent(
     contact: Contact,
     debts: List<LoanDebt>,
@@ -599,9 +771,27 @@ fun ContactLedgerContent(
     currencySymbol: String,
     onRecordPayment: (LoanDebt) -> Unit,
     onDeleteDebt: (LoanDebt) -> Unit,
-    onAddEntryClick: () -> Unit
+    onAddEntryClick: () -> Unit,
+    onUpdateContactPhone: ((Contact, String) -> Unit)? = null
 ) {
     val isBn = isBangla
+    val context = LocalContext.current
+    var showEditPhoneDialog by remember { mutableStateOf(false) }
+
+    val phoneToCall = contact.phone.ifBlank { debts.firstOrNull { it.phone.isNotBlank() }?.phone ?: "" }
+
+    if (showEditPhoneDialog) {
+        EditContactPhoneDialog(
+            contact = contact,
+            isBangla = isBn,
+            onDismiss = { showEditPhoneDialog = false },
+            onSave = { newPhone ->
+                onUpdateContactPhone?.invoke(contact, newPhone)
+                showEditPhoneDialog = false
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -610,60 +800,141 @@ fun ContactLedgerContent(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = contact.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (contact.phone.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (phoneToCall.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { ContactUtils.dialPhoneNumber(context, phoneToCall, isBn) }
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                    tint = IncomeGreen
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = phoneToCall,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = IncomeGreen
+                                )
+                            }
+                        } else {
                             Text(
-                                text = contact.phone,
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = if (isBn) "কোনো ফোন নম্বর যুক্ত নেই" else "No phone number linked",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (onUpdateContactPhone != null) {
+                        IconButton(
+                            onClick = { showEditPhoneDialog = true },
+                            modifier = Modifier.size(36.dp).testTag("edit_contact_phone_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = if (isBn) "নম্বর এডিট করুন" else "Edit Phone",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
 
-                Button(
-                    onClick = onAddEntryClick,
-                    shape = RoundedCornerShape(12.dp)
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Action buttons on Details page: Call and Add Entry
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isBn) "নতুন এন্ট্রি" else "Add")
+                    if (phoneToCall.isNotBlank()) {
+                        Button(
+                            onClick = { ContactUtils.dialPhoneNumber(context, phoneToCall, isBn) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = IncomeGreen,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("contact_details_call_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = if (isBn) "কল করুন" else "Call",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isBn) "কল করুন" else "Call", fontWeight = FontWeight.Bold)
+                        }
+                    } else if (onUpdateContactPhone != null) {
+                        OutlinedButton(
+                            onClick = { showEditPhoneDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("contact_details_add_phone_btn")
+                        ) {
+                            Icon(Icons.Default.ContactPhone, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isBn) "নম্বর যুক্ত করুন" else "Add Phone", fontWeight = FontWeight.Medium)
+                        }
+                    }
+
+                    Button(
+                        onClick = onAddEntryClick,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("contact_details_add_entry_btn")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isBn) "নতুন এন্ট্রি" else "Add Entry", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -1219,10 +1490,41 @@ fun VendorLedgerContent(
                             fontWeight = FontWeight.Bold
                         )
                         if (vendor.phone.isNotBlank()) {
-                            Text(
-                                text = vendor.phone,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            val context = LocalContext.current
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { ContactUtils.dialPhoneNumber(context, vendor.phone, isBn) }
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = IncomeGreen
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = vendor.phone,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = IncomeGreen,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    if (vendor.phone.isNotBlank()) {
+                        val context = LocalContext.current
+                        IconButton(
+                            onClick = { ContactUtils.dialPhoneNumber(context, vendor.phone, isBn) },
+                            modifier = Modifier.testTag("call_vendor_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = if (isBn) "কল করুন" else "Call",
+                                tint = IncomeGreen
                             )
                         }
                     }
@@ -1375,6 +1677,7 @@ fun AddLoanEntryDialog(
     onDismiss: () -> Unit,
     onSave: (contactId: Long?, personName: String, accountId: Long, amount: Double, type: DebtType, dueDate: Long?, note: String, phone: String) -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(contacts.find { it.id == initialContactId }?.name ?: "") }
     var phone by remember { mutableStateOf(contacts.find { it.id == initialContactId }?.phone ?: "") }
     var amountText by remember { mutableStateOf("") }
@@ -1382,9 +1685,71 @@ fun AddLoanEntryDialog(
     var selectedAccountId by remember { mutableStateOf(accounts.firstOrNull()?.account?.id ?: 0L) }
     var note by remember { mutableStateOf("") }
 
+    var phoneOptionsForSelection by remember { mutableStateOf<List<ContactPhoneOption>?>(null) }
+    var pendingContactName by remember { mutableStateOf("") }
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val result = ContactUtils.extractContact(context, uri)
+            if (result != null) {
+                if (result.name.isNotBlank()) {
+                    name = result.name
+                }
+                when {
+                    result.phones.isEmpty() -> {
+                        Toast.makeText(
+                            context,
+                            if (isBangla) "এই কন্টাক্টে কোনো ফোন নম্বর পাওয়া যায়নি" else "No phone numbers found in this contact",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    result.phones.size == 1 -> {
+                        phone = result.phones.first().rawNumber
+                    }
+                    else -> {
+                        pendingContactName = result.name
+                        phoneOptionsForSelection = result.phones
+                    }
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        contactPickerLauncher.launch(null)
+    }
+
+    val onPickContactClick = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        } else {
+            contactPickerLauncher.launch(null)
+        }
+    }
+
+    if (phoneOptionsForSelection != null) {
+        SelectContactPhoneDialog(
+            contactName = pendingContactName,
+            options = phoneOptionsForSelection!!,
+            isBangla = isBangla,
+            onSelectPhone = { selected ->
+                phone = selected.rawNumber
+                phoneOptionsForSelection = null
+            },
+            onDismiss = {
+                phoneOptionsForSelection = null
+            }
+        )
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -1430,13 +1795,51 @@ fun AddLoanEntryDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Pick from Contacts Button
+                OutlinedButton(
+                    onClick = onPickContactClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("pick_contact_btn"),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContactPhone,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isBangla) "ফোনের কন্টাক্ট থেকে চুজ করুন" else "Pick from Phone Contacts",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(if (isBangla) "ব্যক্তির নাম" else "Person Name") },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = onPickContactClick,
+                            modifier = Modifier.testTag("pick_contact_name_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContactPhone,
+                                contentDescription = if (isBangla) "কন্টাক্ট থেকে চুজ করুন" else "Pick from Contacts",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("person_name_input")
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1445,9 +1848,22 @@ fun AddLoanEntryDialog(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text(if (isBangla) "মোবাইল নম্বর (ঐচ্ছিক)" else "Phone Number (Optional)") },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = onPickContactClick,
+                            modifier = Modifier.testTag("pick_contact_phone_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Contacts,
+                                contentDescription = if (isBangla) "কন্টাক্ট থেকে চুজ করুন" else "Pick from Contacts",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("person_phone_input")
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1459,7 +1875,7 @@ fun AddLoanEntryDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("amount_input")
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1470,7 +1886,7 @@ fun AddLoanEntryDialog(
                     label = { Text(Localization.getString(Localization.Key.NOTE, isBangla)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("note_input")
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1491,7 +1907,8 @@ fun AddLoanEntryDialog(
                                 onSave(matched?.id, name.trim(), selectedAccountId, amt, selectedType, null, note.trim(), phone.trim())
                             }
                         },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("save_debt_button")
                     ) {
                         Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
@@ -1993,10 +2410,73 @@ fun AddNewVendorDialog(
     onDismiss: () -> Unit,
     onSave: (name: String, phone: String, locationNote: String, categoryTag: String) -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(initialName) }
     var phone by remember { mutableStateOf("") }
     var locationNote by remember { mutableStateOf("") }
     var categoryTag by remember { mutableStateOf("") }
+
+    var phoneOptionsForSelection by remember { mutableStateOf<List<ContactPhoneOption>?>(null) }
+    var pendingContactName by remember { mutableStateOf("") }
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val result = ContactUtils.extractContact(context, uri)
+            if (result != null) {
+                if (result.name.isNotBlank()) {
+                    name = result.name
+                }
+                when {
+                    result.phones.isEmpty() -> {
+                        Toast.makeText(
+                            context,
+                            if (isBangla) "এই কন্টাক্টে কোনো ফোন নম্বর পাওয়া যায়নি" else "No phone numbers found in this contact",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    result.phones.size == 1 -> {
+                        phone = result.phones.first().rawNumber
+                    }
+                    else -> {
+                        pendingContactName = result.name
+                        phoneOptionsForSelection = result.phones
+                    }
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        contactPickerLauncher.launch(null)
+    }
+
+    val onPickContactClick = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        } else {
+            contactPickerLauncher.launch(null)
+        }
+    }
+
+    if (phoneOptionsForSelection != null) {
+        SelectContactPhoneDialog(
+            contactName = pendingContactName,
+            options = phoneOptionsForSelection!!,
+            isBangla = isBangla,
+            onSelectPhone = { selected ->
+                phone = selected.rawNumber
+                phoneOptionsForSelection = null
+            },
+            onDismiss = {
+                phoneOptionsForSelection = null
+            }
+        )
+    }
 
     val presetCategories = remember(isBangla) {
         if (isBangla) listOf("মুদি দোকান", "ফার্মেসি", "কাঁচাবাজার", "রেস্তোরাঁ", "হার্ডওয়্যার", "জেনারেল স্টোর")
@@ -2052,6 +2532,11 @@ fun AddNewVendorDialog(
                     leadingIcon = {
                         Icon(Icons.Default.Store, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
+                    trailingIcon = {
+                        IconButton(onClick = onPickContactClick) {
+                            Icon(Icons.Default.ContactPhone, contentDescription = if (isBangla) "কন্টাক্ট থেকে চুজ করুন" else "Pick from Contacts", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -2091,6 +2576,11 @@ fun AddNewVendorDialog(
                     label = { Text(if (isBangla) "মোবাইল নম্বর (ঐচ্ছিক)" else "Phone Number (Optional)") },
                     leadingIcon = {
                         Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = onPickContactClick) {
+                            Icon(Icons.Default.Contacts, contentDescription = if (isBangla) "কন্টাক্ট থেকে চুজ করুন" else "Pick from Contacts", tint = MaterialTheme.colorScheme.primary)
+                        }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
