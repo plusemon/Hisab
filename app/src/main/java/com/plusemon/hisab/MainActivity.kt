@@ -160,7 +160,7 @@ fun HisabMainApp(
                 HisabTopBar(
                     user = currentUser,
                     settings = settings,
-                    onTogglePrivacy = { viewModel.toggleHideBalances() },
+                    onToggleDarkMode = { viewModel.toggleDarkMode() },
                     onToggleLanguage = { viewModel.toggleLanguage() },
                     onProfileClick = { currentRoute = Screen.Settings.route },
                     onSettingsClick = { currentRoute = Screen.Settings.route }

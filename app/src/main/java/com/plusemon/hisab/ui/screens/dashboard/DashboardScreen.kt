@@ -248,10 +248,9 @@ fun DashboardScreen(
             monthExpense = monthExpense,
             currencySymbol = currSymbol,
             useBanglaDigits = useBnDigits,
-            hideBalances = hideBalances,
+            hideBalances = false,
             isBangla = isBn,
             currentMonthYear = Formatters.getCurrentMonthYear(),
-            onTogglePrivacy = { viewModel.toggleHideBalances() },
             onIncomeClick = onNavigateToTransactions,
             onExpenseClick = onNavigateToTransactions
         )

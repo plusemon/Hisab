@@ -23,9 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Repeat
@@ -252,6 +254,37 @@ fun SettingsScreen(
                         value = if (settings.numeralSystem == "bn") "বাংলা (১, ২, ৩)" else "English (1, 2, 3)",
                         onClick = { viewModel.toggleNumeralSystem() }
                     )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    // Dark Mode Toggle Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.toggleDarkMode() }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (settings.isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = Localization.getString(Localization.Key.DARK_MODE, isBn),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Switch(
+                            checked = settings.isDarkMode,
+                            onCheckedChange = { viewModel.toggleDarkMode() }
+                        )
+                    }
                 }
             }
 

@@ -17,12 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +42,7 @@ import com.plusemon.hisab.data.model.UserSettings
 fun HisabTopBar(
     user: User?,
     settings: UserSettings,
-    onTogglePrivacy: () -> Unit,
+    onToggleDarkMode: () -> Unit,
     onToggleLanguage: () -> Unit,
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit = onProfileClick,
@@ -109,28 +106,29 @@ fun HisabTopBar(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            // Right: Status & Action Controls Group
+            // Right: Action Controls Group (Dark Mode, Language, Settings)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Sync status pill (Pill shape intentional)
-                SyncStatusPill(status = settings.syncStatus, isBn = isBn)
-
-                // Privacy Eye Toggle
+                // Dark Mode Toggle Button
                 Surface(
-                    onClick = onTogglePrivacy,
+                    onClick = onToggleDarkMode,
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .size(36.dp)
-                        .testTag("privacy_toggle_button")
+                        .testTag("dark_mode_toggle_button")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (settings.hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Toggle Balance Visibility",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            imageVector = if (settings.isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = if (settings.isDarkMode) {
+                                if (isBn) "লাইট মোড চালু করুন" else "Switch to Light Mode"
+                            } else {
+                                if (isBn) "ডার্ক মোড চালু করুন" else "Switch to Dark Mode"
+                            },
+                            tint = if (settings.isDarkMode) Color(0xFFFBBF24) else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -187,52 +185,3 @@ fun HisabTopBar(
         }
     }
 }
-
-@Composable
-fun SyncStatusPill(status: String, isBn: Boolean) {
-    val (icon, label, tint, bg) = when (status) {
-        "OFFLINE" -> Quadruple(
-            Icons.Default.CloudOff,
-            if (isBn) "অফলাইন" else "Offline",
-            Color(0xFF64748B),
-            Color(0xFFF1F5F9)
-        )
-        "SYNCING" -> Quadruple(
-            Icons.Default.Sync,
-            if (isBn) "সিঙ্ক হচ্ছে" else "Syncing",
-            Color(0xFF0284C7),
-            Color(0xFFE0F2FE)
-        )
-        else -> Quadruple(
-            Icons.Default.CloudDone,
-            if (isBn) "সিঙ্কড" else "Synced",
-            Color(0xFF16A34A),
-            Color(0xFFF0FDF4)
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bg)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(12.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = tint
-            )
-        }
-    }
-}
-
-private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

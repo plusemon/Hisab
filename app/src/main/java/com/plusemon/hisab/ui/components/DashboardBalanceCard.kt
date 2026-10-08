@@ -20,12 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -114,20 +111,6 @@ fun DashboardBalanceCard(
                             color = Color.White.copy(alpha = 0.90f),
                             fontWeight = FontWeight.Medium
                         )
-                        if (onTogglePrivacy != null) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            IconButton(
-                                onClick = onTogglePrivacy,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle Balance",
-                                    tint = Color.White.copy(alpha = 0.75f),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
                     }
 
                     // Month Chip (frosted glass aesthetic)
