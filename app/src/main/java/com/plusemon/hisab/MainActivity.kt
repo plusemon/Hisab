@@ -121,6 +121,7 @@ fun HisabMainApp(
     val settings by viewModel.settings.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val updateUiState by viewModel.updateUiState.collectAsState()
+    val syncStatus by viewModel.appSyncStatus.collectAsState()
     val isBn = settings.language == "bn"
 
     val mainRoutes = remember {
@@ -180,6 +181,8 @@ fun HisabMainApp(
                 HisabTopBar(
                     user = currentUser,
                     settings = settings,
+                    syncStatus = syncStatus,
+                    onSyncClick = { viewModel.triggerManualSync() },
                     onToggleDarkMode = { viewModel.toggleDarkMode() },
                     onToggleLanguage = { viewModel.toggleLanguage() },
                     onProfileClick = { currentSubscreen = Screen.Settings.route },

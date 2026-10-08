@@ -17,6 +17,7 @@ import com.plusemon.hisab.data.model.SavingsGoal
 import com.plusemon.hisab.data.model.ShopCreditPayment
 import com.plusemon.hisab.data.model.ShopCreditPurchase
 import com.plusemon.hisab.data.model.TransactionRecord
+import com.plusemon.hisab.data.model.AppSyncStatus
 import com.plusemon.hisab.data.model.TransactionType
 import com.plusemon.hisab.data.model.TransactionWithDetails
 import com.plusemon.hisab.data.model.User
@@ -99,6 +100,23 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _updateUiState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val updateUiState = _updateUiState.asStateFlow()
+
+    private val _appSyncStatus = MutableStateFlow<AppSyncStatus>(AppSyncStatus.Synced())
+    val appSyncStatus = _appSyncStatus.asStateFlow()
+
+    fun markSaving() {
+        _appSyncStatus.value = AppSyncStatus.Saving
+    }
+
+    fun markSaved() {
+        _appSyncStatus.value = AppSyncStatus.Saved()
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2200)
+            if (_appSyncStatus.value is AppSyncStatus.Saved) {
+                _appSyncStatus.value = AppSyncStatus.Synced()
+            }
+        }
+    }
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
 
@@ -208,10 +226,13 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun syncWithFirestore(userId: String) {
         viewModelScope.launch {
+            _appSyncStatus.value = AppSyncStatus.Syncing
             try {
                 firestoreRepository.syncAllWithRoom(userId)
+                _appSyncStatus.value = AppSyncStatus.Synced()
             } catch (e: Exception) {
                 android.util.Log.w("HisabViewModel", "Background sync with Firestore error: ${e.message}")
+                _appSyncStatus.value = AppSyncStatus.Error(e.message)
             }
         }
     }
@@ -219,10 +240,12 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerManualSync() {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            _appSyncStatus.value = AppSyncStatus.Syncing
             _snackbarMessage.emit(if (_settings.value.language == "bn") "ক্লাউড সিঙ্ক শুরু হচ্ছে..." else "Starting cloud sync...")
             val result = firestoreRepository.syncAllWithRoom(user.id)
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0
+                _appSyncStatus.value = AppSyncStatus.Synced()
                 _snackbarMessage.emit(
                     if (_settings.value.language == "bn")
                         "ক্লাউড সিঙ্ক সফল হয়েছে ($count টি ডাটা সিঙ্ক হয়েছে)"
@@ -230,6 +253,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                         "Cloud sync complete ($count records synced)"
                 )
             } else {
+                _appSyncStatus.value = AppSyncStatus.Error(result.exceptionOrNull()?.localizedMessage)
                 _snackbarMessage.emit(
                     if (_settings.value.language == "bn")
                         "সিঙ্ক ব্যর্থ হয়েছে: ${result.exceptionOrNull()?.localizedMessage ?: "নেটওয়ার্ক সমস্যা"}"
@@ -734,6 +758,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun addParsedTransaction(parsed: ParsedQuickEntry) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             try {
                 var accId = parsed.matchedAccount?.id ?: _accountsWithBalances.value.firstOrNull()?.account?.id ?: 0L
                 if (accId <= 0L) {
@@ -772,8 +797,10 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                         android.util.Log.w("HisabViewModel", "Firestore async save error: ${e.message}")
                     }
                 }
+                markSaved()
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
             } catch (e: Exception) {
+                _appSyncStatus.value = AppSyncStatus.Synced()
                 android.util.Log.e("HisabViewModel", "Failed to add parsed transaction: ${e.message}", e)
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সংরক্ষণে ত্রুটি: ${e.localizedMessage}" else "Failed to save entry: ${e.localizedMessage}")
             }
@@ -798,6 +825,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             try {
                 var validAccountId = accountId
                 if (validAccountId <= 0L) {
@@ -840,8 +868,10 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                         android.util.Log.w("HisabViewModel", "Firestore async save error: ${e.message}")
                     }
                 }
+                markSaved()
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন সংরক্ষণ করা হয়েছে" else "Transaction saved successfully")
             } catch (e: Exception) {
+                _appSyncStatus.value = AppSyncStatus.Synced()
                 android.util.Log.e("HisabViewModel", "Failed to insert transaction: ${e.message}", e)
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন সংরক্ষণে সমস্যা হয়েছে: ${e.localizedMessage}" else "Failed to save transaction: ${e.localizedMessage}")
             }
@@ -863,6 +893,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             try {
                 val record = TransactionRecord(
                     id = id,
@@ -886,8 +917,10 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                         android.util.Log.w("HisabViewModel", "Firestore async update error: ${e.message}")
                     }
                 }
+                markSaved()
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "লেনদেন আপডেট করা হয়েছে" else "Transaction updated successfully")
             } catch (e: Exception) {
+                _appSyncStatus.value = AppSyncStatus.Synced()
                 android.util.Log.e("HisabViewModel", "Failed to update transaction: ${e.message}", e)
                 _snackbarMessage.emit(if (_settings.value.language == "bn") "আপডেটে সমস্যা হয়েছে: ${e.localizedMessage}" else "Failed to update: ${e.localizedMessage}")
             }
@@ -897,6 +930,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTransaction(tx: TransactionRecord) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             deletedTransactionUndo = tx
             hisabRepository.deleteTransaction(tx.id, user.id)
             viewModelScope.launch {
@@ -906,6 +940,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     android.util.Log.w("HisabViewModel", "Firestore async delete error: ${e.message}")
                 }
             }
+            markSaved()
             _snackbarMessage.emit("লেনদেন মুছে ফেলা হয়েছে")
         }
     }
@@ -942,6 +977,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             val acc = UserAccount(
                 userId = user.id,
                 name = name,
@@ -952,6 +988,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 iconName = iconName
             )
             hisabRepository.addAccount(acc)
+            markSaved()
             _snackbarMessage.emit("অ্যাকাউন্ট যোগ করা হয়েছে")
         }
     }
@@ -967,6 +1004,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             val acc = UserAccount(
                 id = id,
                 userId = user.id,
@@ -978,6 +1016,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 iconName = iconName
             )
             hisabRepository.updateAccount(acc)
+            markSaved()
             _snackbarMessage.emit("অ্যাকাউন্ট আপডেট করা হয়েছে")
         }
     }
@@ -1091,6 +1130,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun saveBudget(categoryId: Long?, limitAmount: Double, monthYear: String = Formatters.getCurrentMonthYear()) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
+            markSaving()
             val existing = _budgets.value.firstOrNull { it.categoryId == categoryId && it.monthYear == monthYear }
             val budget = Budget(
                 id = existing?.id ?: 0L,
@@ -1100,6 +1140,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 limitAmount = limitAmount
             )
             hisabRepository.setBudget(budget)
+            markSaved()
             _snackbarMessage.emit("বাজেট সংরক্ষণ করা হয়েছে")
         }
     }
@@ -1542,6 +1583,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             if (isManual) {
                 _updateUiState.value = UpdateUiState.Checking
             }
+            _appSyncStatus.value = AppSyncStatus.CheckingUpdates
             val currentVersion = VersionUtils.cleanVersion(com.plusemon.hisab.BuildConfig.VERSION_NAME)
             val release = updateRepository.fetchLatestRelease()
 
@@ -1559,6 +1601,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     _updateUiState.value = UpdateUiState.Idle
                 }
             }
+            _appSyncStatus.value = AppSyncStatus.Synced()
         }
     }
 
