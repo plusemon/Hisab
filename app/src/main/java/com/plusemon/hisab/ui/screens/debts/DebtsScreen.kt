@@ -29,12 +29,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Warning
@@ -123,6 +125,7 @@ fun DebtsScreen(
     var recordingPaymentDebt by remember { mutableStateOf<LoanDebt?>(null) }
 
     var showAddCreditDialog by remember { mutableStateOf(false) }
+    var showAddVendorDialog by remember { mutableStateOf(false) }
     var settlingVendor by remember { mutableStateOf<Vendor?>(null) }
     var debtToDelete by remember { mutableStateOf<LoanDebt?>(null) }
 
@@ -184,6 +187,17 @@ fun DebtsScreen(
         )
     }
 
+    if (showAddVendorDialog) {
+        AddNewVendorDialog(
+            isBangla = isBn,
+            onDismiss = { showAddVendorDialog = false },
+            onSave = { name, phone, locationNote, tag ->
+                viewModel.addVendor(name, phone, locationNote, tag)
+                showAddVendorDialog = false
+            }
+        )
+    }
+
     if (showAddCreditDialog) {
         AddShopCreditDialog(
             vendors = vendors,
@@ -194,6 +208,11 @@ fun DebtsScreen(
             onSave = { vendorId, vendorName, amount, dueDate, note, phone, locationNote, tag ->
                 viewModel.addShopCreditPurchase(vendorId ?: 0L, vendorName, 1L, amount, dueDate, note, phone, locationNote, tag)
                 showAddCreditDialog = false
+            },
+            onAddNewVendor = { name, phone, locationNote, tag, onCreated ->
+                viewModel.addVendor(name, phone, locationNote, tag) { newVendor ->
+                    onCreated(newVendor)
+                }
             }
         )
     }
@@ -317,6 +336,7 @@ fun DebtsScreen(
                         currencySymbol = currSymbol,
                         onVendorClick = { vendorId -> selectedVendorId = vendorId },
                         onAddCreditClick = { showAddCreditDialog = true },
+                        onAddNewVendorClick = { showAddVendorDialog = true },
                         onArchiveVendor = { vId, archived -> viewModel.archiveVendor(vId, archived) }
                     )
                 }
@@ -858,6 +878,7 @@ fun ShopCreditOverviewContent(
     currencySymbol: String,
     onVendorClick: (Long) -> Unit,
     onAddCreditClick: () -> Unit,
+    onAddNewVendorClick: () -> Unit = {},
     onArchiveVendor: (Long, Boolean) -> Unit
 ) {
     val isBn = isBangla
@@ -949,6 +970,28 @@ fun ShopCreditOverviewContent(
                     fontWeight = FontWeight.Bold,
                     color = ExpenseRed
                 )
+            }
+        }
+
+        // Section Title & Add New Shop Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isBn) "দোকানের তালিকা" else "Shop Directory",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Button(
+                onClick = onAddNewVendorClick,
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(if (isBn) "নতুন শপ" else "Add Shop", fontWeight = FontWeight.Bold)
             }
         }
 
@@ -1530,6 +1573,7 @@ fun RecordPaymentDialog(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddShopCreditDialog(
     vendors: List<Vendor>,
@@ -1537,39 +1581,345 @@ fun AddShopCreditDialog(
     initialVendorId: Long?,
     isBangla: Boolean,
     onDismiss: () -> Unit,
-    onSave: (vendorId: Long?, vendorName: String, amount: Double, dueDate: Long?, note: String, phone: String, locationNote: String, tag: String) -> Unit
+    onSave: (vendorId: Long?, vendorName: String, amount: Double, dueDate: Long?, note: String, phone: String, locationNote: String, tag: String) -> Unit,
+    onAddNewVendor: ((name: String, phone: String, locationNote: String, categoryTag: String, onCreated: (Vendor) -> Unit) -> Unit)? = null
 ) {
-    var vendorName by remember { mutableStateOf(vendors.find { it.id == initialVendorId }?.name ?: "") }
+    val activeVendors = remember(vendors) { vendors.filter { !it.isArchived } }
+    var selectedVendor by remember(vendors, initialVendorId) {
+        mutableStateOf(activeVendors.find { it.id == initialVendorId })
+    }
+    var vendorSearchQuery by remember {
+        mutableStateOf(selectedVendor?.name ?: "")
+    }
     var amountText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf(vendors.find { it.id == initialVendorId }?.phone ?: "") }
+    var phone by remember { mutableStateOf(selectedVendor?.phone ?: "") }
+    var locationNote by remember { mutableStateOf(selectedVendor?.locationNote ?: "") }
+    var categoryTag by remember { mutableStateOf(selectedVendor?.categoryTag ?: "General") }
+
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    var showCreateVendorDialog by remember { mutableStateOf(false) }
+
+    if (showCreateVendorDialog) {
+        AddNewVendorDialog(
+            initialName = if (selectedVendor == null) vendorSearchQuery.trim() else "",
+            isBangla = isBangla,
+            onDismiss = { showCreateVendorDialog = false },
+            onSave = { vName, vPhone, vLocation, vTag ->
+                if (onAddNewVendor != null) {
+                    onAddNewVendor(vName, vPhone, vLocation, vTag) { newVendor ->
+                        selectedVendor = newVendor
+                        vendorSearchQuery = newVendor.name
+                        phone = newVendor.phone
+                        locationNote = newVendor.locationNote
+                        categoryTag = newVendor.categoryTag
+                    }
+                } else {
+                    vendorSearchQuery = vName
+                    phone = vPhone
+                    locationNote = vLocation
+                    categoryTag = vTag
+                }
+                showCreateVendorDialog = false
+            }
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    text = if (isBangla) "দোকান বাকি রেকর্ড করুন" else "Add Shop Credit",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Store,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (isBangla) "দোকান বাকি রেকর্ড করুন" else "Add Shop Credit",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = vendorName,
-                    onValueChange = { vendorName = it },
-                    label = { Text(if (isBangla) "দোকানের নাম" else "Store / Vendor Name") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Section Title & Add New Shop Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isBangla) "শপ / দোকান নির্বাচন করুন *" else "Select Store / Shop *",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    TextButton(
+                        onClick = { showCreateVendorDialog = true },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = if (isBangla) "নতুন শপ" else "New Shop",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Selected Vendor Card or Selector
+                if (selectedVendor != null) {
+                    val vendor = selectedVendor!!
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Store,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = vendor.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (vendor.categoryTag.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant
+                                        ) {
+                                            Text(
+                                                text = vendor.categoryTag,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                val subText = listOf(vendor.phone, vendor.locationNote).filter { it.isNotBlank() }.joinToString(" • ")
+                                if (subText.isNotBlank()) {
+                                    Text(
+                                        text = subText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    selectedVendor = null
+                                    vendorSearchQuery = ""
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove selected shop",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Quick-selection chips from existing shops
+                    if (activeVendors.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            activeVendors.take(5).forEach { vendor ->
+                                FilterChip(
+                                    selected = false,
+                                    onClick = {
+                                        selectedVendor = vendor
+                                        vendorSearchQuery = vendor.name
+                                        phone = vendor.phone
+                                        locationNote = vendor.locationNote
+                                        categoryTag = vendor.categoryTag
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Store, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    },
+                                    label = {
+                                        Text(vendor.name, maxLines = 1)
+                                    }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
+                    // Dropdown / Search Input
+                    ExposedDropdownMenuBox(
+                        expanded = dropdownExpanded,
+                        onExpandedChange = { dropdownExpanded = it }
+                    ) {
+                        val filteredVendors = remember(activeVendors, vendorSearchQuery) {
+                            if (vendorSearchQuery.isBlank()) activeVendors
+                            else activeVendors.filter {
+                                it.name.contains(vendorSearchQuery, ignoreCase = true) ||
+                                        it.categoryTag.contains(vendorSearchQuery, ignoreCase = true) ||
+                                        it.phone.contains(vendorSearchQuery)
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = vendorSearchQuery,
+                            onValueChange = {
+                                vendorSearchQuery = it
+                                dropdownExpanded = true
+                            },
+                            placeholder = { Text(if (isBangla) "দোকানের নাম লিখুন বা সিলেক্ট করুন..." else "Search or type store name...") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryEditable)
+                                .fillMaxWidth()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }
+                        ) {
+                            // First item: "+ নতুন শপ যুক্ত করুন"
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (vendorSearchQuery.isNotBlank() && activeVendors.none { it.name.equals(vendorSearchQuery.trim(), ignoreCase = true) })
+                                                (if (isBangla) "নতুন শপ হিসেবে যোগ করুন: '${vendorSearchQuery.trim()}'" else "Add '${vendorSearchQuery.trim()}' as New Shop")
+                                            else
+                                                (if (isBangla) "+ নতুন শপ যুক্ত করুন" else "+ Add New Shop"),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    dropdownExpanded = false
+                                    showCreateVendorDialog = true
+                                }
+                            )
+
+                            filteredVendors.forEach { vendor ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Store,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = vendor.name,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                if (vendor.categoryTag.isNotBlank() || vendor.phone.isNotBlank()) {
+                                                    Text(
+                                                        text = listOf(vendor.categoryTag, vendor.phone).filter { it.isNotBlank() }.joinToString(" • "),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedVendor = vendor
+                                        vendorSearchQuery = vendor.name
+                                        phone = vendor.phone
+                                        locationNote = vendor.locationNote
+                                        categoryTag = vendor.categoryTag
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
+
+                            if (filteredVendors.isEmpty() && vendorSearchQuery.isNotBlank()) {
+                                Text(
+                                    text = if (isBangla) "কোনো মিল পাওয়া যায়নি" else "No matching shop found",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = amountText,
@@ -1605,11 +1955,175 @@ fun AddShopCreditDialog(
                     Button(
                         onClick = {
                             val amt = amountText.toDoubleOrNull() ?: 0.0
-                            if (vendorName.isNotBlank() && amt > 0) {
-                                val matched = vendors.find { it.name.equals(vendorName.trim(), true) }
-                                onSave(matched?.id, vendorName.trim(), amt, null, note.trim(), phone.trim(), "", "General")
+                            val finalName = selectedVendor?.name ?: vendorSearchQuery.trim()
+                            if (finalName.isNotBlank() && amt > 0) {
+                                val matched = selectedVendor ?: vendors.find { it.name.equals(finalName, true) }
+                                onSave(
+                                    matched?.id,
+                                    finalName,
+                                    amt,
+                                    null,
+                                    note.trim(),
+                                    selectedVendor?.phone ?: phone.trim(),
+                                    selectedVendor?.locationNote ?: locationNote.trim(),
+                                    selectedVendor?.categoryTag ?: categoryTag.trim()
+                                )
                             }
                         },
+                        enabled = (selectedVendor != null || vendorSearchQuery.isNotBlank()) && (amountText.toDoubleOrNull() ?: 0.0) > 0,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AddNewVendorDialog(
+    initialName: String = "",
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (name: String, phone: String, locationNote: String, categoryTag: String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+    var phone by remember { mutableStateOf("") }
+    var locationNote by remember { mutableStateOf("") }
+    var categoryTag by remember { mutableStateOf("") }
+
+    val presetCategories = remember(isBangla) {
+        if (isBangla) listOf("মুদি দোকান", "ফার্মেসি", "কাঁচাবাজার", "রেস্তোরাঁ", "হার্ডওয়্যার", "জেনারেল স্টোর")
+        else listOf("Grocery", "Pharmacy", "Fresh Market", "Restaurant", "Hardware", "General")
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Store,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (isBangla) "নতুন শপ যুক্ত করুন" else "Add New Shop",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (isBangla) "দোকানের নাম *" else "Store / Shop Name *") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Store, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = if (isBangla) "দোকানের ধরন / ক্যাটাগরি" else "Category / Type",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    presetCategories.forEach { cat ->
+                        FilterChip(
+                            selected = categoryTag.equals(cat, ignoreCase = true),
+                            onClick = {
+                                categoryTag = if (categoryTag.equals(cat, ignoreCase = true)) "" else cat
+                            },
+                            label = { Text(cat, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (isBangla) "মোবাইল নম্বর (ঐচ্ছিক)" else "Phone Number (Optional)") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = locationNote,
+                    onValueChange = { locationNote = it },
+                    label = { Text(if (isBangla) "ঠিকানা / এলাকা (ঐচ্ছিক)" else "Location / Address (Optional)") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onSave(name.trim(), phone.trim(), locationNote.trim(), categoryTag.ifBlank { "General" }.trim())
+                            }
+                        },
+                        enabled = name.isNotBlank(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)

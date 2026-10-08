@@ -1206,11 +1206,26 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     // SHOP CREDIT (দোকান বাকি) ACTIONS
     // -------------------------------------------------------------
 
-    fun addVendor(name: String, phone: String, locationNote: String, categoryTag: String = "") {
+    fun addVendor(
+        name: String,
+        phone: String,
+        locationNote: String,
+        categoryTag: String = "",
+        onCreated: ((Vendor) -> Unit)? = null
+    ) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
-            hisabRepository.addVendor(Vendor(userId = user.id, name = name, phone = phone, locationNote = locationNote, categoryTag = categoryTag))
-            _snackbarMessage.emit("ভেন্ডর/দোকান যুক্ত করা হয়েছে")
+            val vendor = Vendor(
+                userId = user.id,
+                name = name,
+                phone = phone,
+                locationNote = locationNote,
+                categoryTag = categoryTag
+            )
+            val newId = hisabRepository.addVendor(vendor)
+            val created = vendor.copy(id = newId)
+            onCreated?.invoke(created)
+            _snackbarMessage.emit(if (_settings.value.language == "bn") "দোকান যুক্ত করা হয়েছে" else "Shop added successfully")
         }
     }
 
