@@ -64,6 +64,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DashboardBalanceCard
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.UpdateCard
 import com.plusemon.hisab.ui.components.UpdateDownloadingCard
@@ -240,155 +241,20 @@ fun DashboardScreen(
             }
         }
 
-        // Hero Total Net Worth Card (Flat Solid Color, No Gradient)
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBn),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            text = Formatters.formatMonthYear(Formatters.getCurrentMonthYear(), isBn),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Big Hero Number
-                CurrencyAmountText(
-                    amount = totalBalance,
-                    currencySymbol = currSymbol,
-                    useBanglaDigits = useBnDigits,
-                    hideBalances = hideBalances,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.testTag("hero_total_balance_text")
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Income & Expense Sub-Cards (Flat block, crisp high contrast)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Income Block
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDownward,
-                                    contentDescription = null,
-                                    tint = IncomeGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBn),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-                                )
-                                CurrencyAmountText(
-                                    amount = monthIncome,
-                                    currencySymbol = currSymbol,
-                                    useBanglaDigits = useBnDigits,
-                                    hideBalances = hideBalances,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    // Expense Block
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowUpward,
-                                    contentDescription = null,
-                                    tint = ExpenseRed,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBn),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-                                )
-                                CurrencyAmountText(
-                                    amount = monthExpense,
-                                    currencySymbol = currSymbol,
-                                    useBanglaDigits = useBnDigits,
-                                    hideBalances = hideBalances,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Redesigned Responsive Hero Balance & Monthly Overview Card
+        DashboardBalanceCard(
+            totalBalance = totalBalance,
+            monthIncome = monthIncome,
+            monthExpense = monthExpense,
+            currencySymbol = currSymbol,
+            useBanglaDigits = useBnDigits,
+            hideBalances = hideBalances,
+            isBangla = isBn,
+            currentMonthYear = Formatters.getCurrentMonthYear(),
+            onTogglePrivacy = { viewModel.toggleHideBalances() },
+            onIncomeClick = onNavigateToTransactions,
+            onExpenseClick = onNavigateToTransactions
+        )
 
         // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer] (Restyled to 12.dp radius instead of pills)
         Row(

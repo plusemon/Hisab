@@ -105,6 +105,28 @@ class AuthRepository(
         }
 
         if (user != null) {
+            if (user.photoUrl.isNullOrEmpty()) {
+                val savedPhoto = prefs.getString("current_user_photo", null)
+                if (!savedPhoto.isNullOrEmpty()) {
+                    val updated = user.copy(photoUrl = savedPhoto)
+                    userDao.updateUser(updated)
+                    user = updated
+                } else {
+                    try {
+                        if (FirebaseApp.getApps(context).isNotEmpty()) {
+                            val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                            val fbPhoto = fbUser?.photoUrl?.toString()
+                            if (!fbPhoto.isNullOrEmpty() && (fbUser.email == user.email || user.isGoogleUser)) {
+                                val updated = user.copy(photoUrl = fbPhoto, isGoogleUser = true)
+                                userDao.updateUser(updated)
+                                user = updated
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("AuthRepository", "Firebase photoUrl check error: ${e.message}")
+                    }
+                }
+            }
             ensureUserDataSeeded(user.id)
             saveSession(user)
         } else {

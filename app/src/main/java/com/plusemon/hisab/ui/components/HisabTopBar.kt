@@ -78,21 +78,13 @@ fun HisabTopBar(
                     .padding(4.dp)
             ) {
                 // User Avatar
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val initials = user?.displayName?.take(2)?.uppercase() ?: "H"
-                    Text(
-                        text = initials,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontSize = 14.sp
-                    )
-                }
+                UserAvatar(
+                    photoUrl = user?.photoUrl,
+                    displayName = user?.displayName,
+                    size = 38.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                )
 
                 Spacer(modifier = Modifier.width(10.dp))
 

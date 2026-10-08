@@ -439,11 +439,18 @@ fun AuthScreen(
                                         val userDisplayName = googleIdTokenCredential.displayName
                                             ?: googleIdTokenCredential.givenName
                                             ?: userEmail.substringBefore("@")
-                                        val userPhotoUrl = googleIdTokenCredential.profilePictureUri?.toString()
+                                        val credentialPhoto = googleIdTokenCredential.profilePictureUri?.toString()
                                         val googleId = googleIdTokenCredential.id
 
                                         // Optionally authenticate with Firebase Auth
                                         val firebaseUid = signInFirebaseWithGoogleToken(context, idToken)
+                                        val fbPhoto = try {
+                                            if (com.google.firebase.FirebaseApp.getApps(context).isNotEmpty()) {
+                                                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
+                                            } else null
+                                        } catch (e: Exception) { null }
+
+                                        val userPhotoUrl = credentialPhoto ?: fbPhoto
 
                                         viewModel.signInWithGoogle(
                                             uid = firebaseUid ?: googleId,

@@ -203,4 +203,40 @@ class ExampleRobolectricTest {
     val allTxs = db.transactionDao().getAllTransactionsList(user.id)
     assertTrue(allTxs.none { it.id == id })
   }
+
+  @Test
+  fun `google sign in with photoUrl persists and restores across app restarts`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = com.plusemon.hisab.data.local.AppDatabase.getDatabase(context)
+    val authRepo = com.plusemon.hisab.data.repository.AuthRepository(context, db)
+
+    val googleEmail = "bdemon00@gmail.com"
+    val googleName = "Bd Emon"
+    val testPhotoUrl = "https://lh3.googleusercontent.com/a/ACg8ocISampleAvatarKey"
+
+    // Sign in with Google with profile picture
+    val result = authRepo.signInWithGoogle(
+      uid = "google_user_12345",
+      email = googleEmail,
+      displayName = googleName,
+      photoUrl = testPhotoUrl
+    )
+    assertTrue("Sign-in should be successful", result is com.plusemon.hisab.data.repository.AuthResult.Success)
+    val signedInUser = (result as com.plusemon.hisab.data.repository.AuthResult.Success).user
+    assertEquals(testPhotoUrl, signedInUser.photoUrl)
+    assertEquals(googleName, signedInUser.displayName)
+    assertTrue(signedInUser.isGoogleUser)
+
+    // Verify currentUser StateFlow has the photo
+    assertEquals(testPhotoUrl, authRepo.currentUser.value?.photoUrl)
+
+    // Simulate App restart
+    val newAuthRepo = com.plusemon.hisab.data.repository.AuthRepository(context, db)
+    newAuthRepo.loadInitialUser()
+
+    val loadedUser = newAuthRepo.currentUser.value
+    assertTrue("User should be restored", loadedUser != null)
+    assertEquals("Photo URL must persist across app restart", testPhotoUrl, loadedUser?.photoUrl)
+    assertEquals(googleEmail, loadedUser?.email)
+  }
 }

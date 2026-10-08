@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.plusemon.hisab.domain.util.Formatters
 
 @Composable
@@ -19,7 +20,10 @@ fun CurrencyAmountText(
     color: Color = Color.Unspecified,
     style: TextStyle = MaterialTheme.typography.titleMedium,
     fontWeight: FontWeight? = null,
-    prefix: String = ""
+    prefix: String = "",
+    maxLines: Int = 1,
+    softWrap: Boolean = false,
+    overflow: TextOverflow = TextOverflow.Ellipsis
 ) {
     val formatted = Formatters.formatAmount(
         amount = amount,
@@ -35,6 +39,9 @@ fun CurrencyAmountText(
         color = color,
         style = style,
         fontWeight = fontWeight,
+        maxLines = maxLines,
+        softWrap = softWrap,
+        overflow = overflow,
         modifier = modifier
     )
 }
