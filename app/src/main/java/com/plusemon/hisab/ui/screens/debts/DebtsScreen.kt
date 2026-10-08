@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,7 +88,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -126,7 +130,8 @@ fun DebtsScreen(
     val hideBalances = settings.hideBalances
     val currSymbol = settings.currencySymbol
 
-    var hubTab by remember { mutableStateOf(0) } // 0: Lending & Borrowing (ধার), 1: Shop Credit (দোকান বাকি)
+    val debtPagerState = rememberPagerState(initialPage = 0) { 2 }
+    val coroutineScope = rememberCoroutineScope()
 
     val allDebts by viewModel.loansDebts.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
@@ -287,7 +292,7 @@ fun DebtsScreen(
             if (selectedContactId == null && selectedVendorId == null) {
                 FloatingActionButton(
                     onClick = {
-                        if (hubTab == 0) showAddLoanDialog = true else showAddCreditDialog = true
+                        if (debtPagerState.currentPage == 0) showAddLoanDialog = true else showAddCreditDialog = true
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -305,60 +310,73 @@ fun DebtsScreen(
         ) {
             if (selectedContactId == null && selectedVendorId == null) {
                 TabRow(
-                    selectedTabIndex = hubTab,
+                    selectedTabIndex = debtPagerState.currentPage,
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
                     Tab(
-                        selected = hubTab == 0,
-                        onClick = { hubTab = 0 },
+                        selected = debtPagerState.currentPage == 0,
+                        onClick = {
+                            coroutineScope.launch {
+                                debtPagerState.animateScrollToPage(0)
+                            }
+                        },
                         text = {
                             Text(
                                 text = if (isBn) "ধার ও ঋণ" else "Lending & Borrowing",
-                                fontWeight = if (hubTab == 0) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (debtPagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal
                             )
                         },
                         modifier = Modifier.testTag("tab_lending")
                     )
                     Tab(
-                        selected = hubTab == 1,
-                        onClick = { hubTab = 1 },
+                        selected = debtPagerState.currentPage == 1,
+                        onClick = {
+                            coroutineScope.launch {
+                                debtPagerState.animateScrollToPage(1)
+                            }
+                        },
                         text = {
                             Text(
                                 text = if (isBn) "দোকান বাকি" else "Shop Credit",
-                                fontWeight = if (hubTab == 1) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (debtPagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal
                             )
                         },
                         modifier = Modifier.testTag("tab_shop_credit")
                     )
                 }
 
-                if (hubTab == 0) {
-                    DebtsOverviewContent(
-                        contacts = contacts,
-                        debts = allDebts,
-                        totalReceivable = totalOwedToMe,
-                        totalPayable = totalIOwe,
-                        isBangla = isBn,
-                        useBnDigits = useBnDigits,
-                        hideBalances = hideBalances,
-                        currencySymbol = currSymbol,
-                        onContactClick = { contactId -> selectedContactId = contactId },
-                        onAddDebtClick = { showAddLoanDialog = true }
-                    )
-                } else {
-                    ShopCreditOverviewContent(
-                        vendors = vendors,
-                        purchases = shopCreditPurchases,
-                        totalOwed = totalShopCreditOwed,
-                        isBangla = isBn,
-                        useBnDigits = useBnDigits,
-                        hideBalances = hideBalances,
-                        currencySymbol = currSymbol,
-                        onVendorClick = { vendorId -> selectedVendorId = vendorId },
-                        onAddCreditClick = { showAddCreditDialog = true },
-                        onAddNewVendorClick = { showAddVendorDialog = true },
-                        onArchiveVendor = { vId, archived -> viewModel.archiveVendor(vId, archived) }
-                    )
+                HorizontalPager(
+                    state = debtPagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    if (page == 0) {
+                        DebtsOverviewContent(
+                            contacts = contacts,
+                            debts = allDebts,
+                            totalReceivable = totalOwedToMe,
+                            totalPayable = totalIOwe,
+                            isBangla = isBn,
+                            useBnDigits = useBnDigits,
+                            hideBalances = hideBalances,
+                            currencySymbol = currSymbol,
+                            onContactClick = { contactId -> selectedContactId = contactId },
+                            onAddDebtClick = { showAddLoanDialog = true }
+                        )
+                    } else {
+                        ShopCreditOverviewContent(
+                            vendors = vendors,
+                            purchases = shopCreditPurchases,
+                            totalOwed = totalShopCreditOwed,
+                            isBangla = isBn,
+                            useBnDigits = useBnDigits,
+                            hideBalances = hideBalances,
+                            currencySymbol = currSymbol,
+                            onVendorClick = { vendorId -> selectedVendorId = vendorId },
+                            onAddCreditClick = { showAddCreditDialog = true },
+                            onAddNewVendorClick = { showAddVendorDialog = true },
+                            onArchiveVendor = { vId, archived -> viewModel.archiveVendor(vId, archived) }
+                        )
+                    }
                 }
             } else if (selectedContactId != null && activeContact != null) {
                 ContactLedgerContent(

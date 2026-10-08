@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -59,7 +61,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,7 +110,8 @@ fun BudgetsAndGoalsScreen(
     val categories by viewModel.categories.collectAsState()
     val budgets by viewModel.budgets.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) } // 0: Budgets, 1: Savings Goals
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val coroutineScope = rememberCoroutineScope()
 
     var showAddBudgetDialog by remember { mutableStateOf(false) }
     var showAddGoalDialog by remember { mutableStateOf(false) }
@@ -211,7 +216,7 @@ fun BudgetsAndGoalsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (selectedTab == 0) showAddBudgetDialog = true else showAddGoalDialog = true
+                    if (pagerState.currentPage == 0) showAddBudgetDialog = true else showAddGoalDialog = true
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -228,128 +233,143 @@ fun BudgetsAndGoalsScreen(
         ) {
             // Tab Header (Budgets vs Savings Goals)
             TabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = pagerState.currentPage,
                 containerColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
                 Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    selected = pagerState.currentPage == 0,
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(0)
+                        }
+                    },
                     text = {
                         Text(
                             text = Localization.getString(Localization.Key.BUDGETS, isBn),
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     modifier = Modifier.testTag("tab_budgets")
                 )
                 Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    selected = pagerState.currentPage == 1,
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(1)
+                        }
+                    },
                     text = {
                         Text(
                             text = Localization.getString(Localization.Key.SAVINGS_GOALS, isBn),
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     modifier = Modifier.testTag("tab_goals")
                 )
             }
 
-            if (selectedTab == 0) {
-                // BUDGETS TAB
-                LazyColumn(
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Overall Budget Card (if configured)
-                    if (overallBudgetProgress != null) {
-                        item {
-                            OverallBudgetCard(
-                                progress = overallBudgetProgress!!,
-                                isBangla = isBn,
-                                useBnDigits = useBnDigits,
-                                hideBalances = hideBalances,
-                                currSymbol = currSymbol,
-                                onDelete = { budgetToDelete = overallBudgetProgress }
-                            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                if (page == 0) {
+                    // BUDGETS TAB
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Overall Budget Card (if configured)
+                        if (overallBudgetProgress != null) {
+                            item {
+                                OverallBudgetCard(
+                                    progress = overallBudgetProgress!!,
+                                    isBangla = isBn,
+                                    useBnDigits = useBnDigits,
+                                    hideBalances = hideBalances,
+                                    currSymbol = currSymbol,
+                                    onDelete = { budgetToDelete = overallBudgetProgress }
+                                )
+                            }
                         }
-                    }
 
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp, bottom = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isBn) "ক্যাটাগরি অনুযায়ী বাজেট" else "Category Budgets",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp, bottom = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isBn) "ক্যাটাগরি অনুযায়ী বাজেট" else "Category Budgets",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                    }
 
-                    val budgetedCategories = categoryProgressList.filter { it.budgetLimit != null && it.budgetLimit > 0 }
-                    if (budgetedCategories.isEmpty()) {
-                        item {
-                            EmptyStateView(
-                                icon = Icons.Default.PieChart,
-                                title = Localization.getString(Localization.Key.EMPTY_BUDGETS, isBn),
-                                description = if (isBn) "মাসিক বাজেট নির্ধারণ করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to set up your monthly budget.",
-                                actionLabel = if (isBn) "+ বাজেট সেট করুন" else "+ Set Budget",
-                                onActionClick = { showAddBudgetDialog = true }
-                            )
-                        }
-                    } else {
-                        items(budgetedCategories, key = { it.category.id }) { item ->
-                            CategoryBudgetProgressItem(
-                                progress = item,
-                                isBangla = isBn,
-                                useBnDigits = useBnDigits,
-                                hideBalances = hideBalances,
-                                currSymbol = currSymbol,
-                                onDelete = { budgetToDelete = item }
-                            )
+                        val budgetedCategories = categoryProgressList.filter { it.budgetLimit != null && it.budgetLimit > 0 }
+                        if (budgetedCategories.isEmpty()) {
+                            item {
+                                EmptyStateView(
+                                    icon = Icons.Default.PieChart,
+                                    title = Localization.getString(Localization.Key.EMPTY_BUDGETS, isBn),
+                                    description = if (isBn) "মাসিক বাজেট নির্ধারণ করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to set up your monthly budget.",
+                                    actionLabel = if (isBn) "+ বাজেট সেট করুন" else "+ Set Budget",
+                                    onActionClick = { showAddBudgetDialog = true }
+                                )
+                            }
+                        } else {
+                            items(budgetedCategories, key = { it.category.id }) { item ->
+                                CategoryBudgetProgressItem(
+                                    progress = item,
+                                    isBangla = isBn,
+                                    useBnDigits = useBnDigits,
+                                    hideBalances = hideBalances,
+                                    currSymbol = currSymbol,
+                                    onDelete = { budgetToDelete = item }
+                                )
+                            }
                         }
                     }
-                }
-            } else {
-                // SAVINGS GOALS TAB
-                LazyColumn(
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (savingsGoals.isEmpty()) {
-                        item {
-                            EmptyStateView(
-                                icon = Icons.Default.Savings,
-                                title = Localization.getString(Localization.Key.EMPTY_GOALS, isBn),
-                                description = if (isBn) "সঞ্চয় লক্ষ্য সেট করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to create a savings goal.",
-                                actionLabel = if (isBn) "+ সঞ্চয় লক্ষ্য যোগ করুন" else "+ Create Savings Goal",
-                                onActionClick = { showAddGoalDialog = true }
-                            )
-                        }
-                    } else {
-                        items(savingsGoals, key = { it.id }) { goal ->
-                            SavingsGoalItemCard(
-                                goal = goal,
-                                isBangla = isBn,
-                                useBnDigits = useBnDigits,
-                                hideBalances = hideBalances,
-                                currSymbol = currSymbol,
-                                onDeposit = {
-                                    adjustingGoal = goal
-                                    isDepositMode = true
-                                },
-                                onWithdraw = {
-                                    adjustingGoal = goal
-                                    isDepositMode = false
-                                },
-                                onDelete = { goalToDelete = goal }
-                            )
+                } else {
+                    // SAVINGS GOALS TAB
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (savingsGoals.isEmpty()) {
+                            item {
+                                EmptyStateView(
+                                    icon = Icons.Default.Savings,
+                                    title = Localization.getString(Localization.Key.EMPTY_GOALS, isBn),
+                                    description = if (isBn) "সঞ্চয় লক্ষ্য সেট করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to create a savings goal.",
+                                    actionLabel = if (isBn) "+ সঞ্চয় লক্ষ্য যোগ করুন" else "+ Create Savings Goal",
+                                    onActionClick = { showAddGoalDialog = true }
+                                )
+                            }
+                        } else {
+                            items(savingsGoals, key = { it.id }) { goal ->
+                                SavingsGoalItemCard(
+                                    goal = goal,
+                                    isBangla = isBn,
+                                    useBnDigits = useBnDigits,
+                                    hideBalances = hideBalances,
+                                    currSymbol = currSymbol,
+                                    onDeposit = {
+                                        adjustingGoal = goal
+                                        isDepositMode = true
+                                    },
+                                    onWithdraw = {
+                                        adjustingGoal = goal
+                                        isDepositMode = false
+                                    },
+                                    onDelete = { goalToDelete = goal }
+                                )
+                            }
                         }
                     }
                 }
