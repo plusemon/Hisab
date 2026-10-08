@@ -24,17 +24,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -58,12 +54,15 @@ import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
+import com.plusemon.hisab.ui.components.getIconByName
+import com.plusemon.hisab.ui.components.parseColorHex
+import com.plusemon.hisab.ui.screens.dashboard.TransactionRowItem
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.theme.TransferBlue
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
     viewModel: HisabViewModel,
@@ -78,10 +77,12 @@ fun TransactionsScreen(
     val currSymbol = settings.currencySymbol
 
     val allTransactions by viewModel.transactions.collectAsState()
+    val accounts by viewModel.accountsWithBalances.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf<TransactionType?>(null) }
     var selectedPeriodFilter by remember { mutableStateOf("THIS_MONTH") }
+    var selectedAccountId by remember { mutableStateOf<Long?>(null) }
     var txToDelete by remember { mutableStateOf<TransactionWithDetails?>(null) }
 
     if (txToDelete != null) {
@@ -104,21 +105,25 @@ fun TransactionsScreen(
         )
     }
 
-    // Filter logic
-    val filteredTransactions = remember(allTransactions, searchQuery, selectedTypeFilter, selectedPeriodFilter) {
+    // Filter logic including Account Filter
+    val filteredTransactions = remember(allTransactions, searchQuery, selectedTypeFilter, selectedPeriodFilter, selectedAccountId) {
         val (start, end) = Formatters.getStartAndEndForPeriod(selectedPeriodFilter)
         allTransactions.filter { item ->
             val matchesPeriod = if (selectedPeriodFilter == "ALL") true else item.transaction.dateTimestamp in start..end
             val matchesType = selectedTypeFilter == null || item.transaction.type == selectedTypeFilter
+            val matchesAccount = selectedAccountId == null ||
+                    item.transaction.accountId == selectedAccountId ||
+                    (item.transaction.type == TransactionType.TRANSFER && item.transaction.toAccountId == selectedAccountId)
             val matchesSearch = if (searchQuery.isBlank()) true else {
                 val q = searchQuery.lowercase()
                 item.transaction.note.lowercase().contains(q) ||
                         (item.category?.nameBn?.lowercase()?.contains(q) == true) ||
                         (item.category?.nameEn?.lowercase()?.contains(q) == true) ||
                         item.account.name.lowercase().contains(q) ||
+                        (item.toAccount?.name?.lowercase()?.contains(q) == true) ||
                         item.transaction.amount.toString().contains(q)
             }
-            matchesPeriod && matchesType && matchesSearch
+            matchesPeriod && matchesType && matchesAccount && matchesSearch
         }
     }
 
@@ -169,7 +174,7 @@ fun TransactionsScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
                     .testTag("tx_search_input")
             )
 
@@ -196,7 +201,7 @@ fun TransactionsScreen(
 
             // Type Filter Chips
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
@@ -253,7 +258,60 @@ fun TransactionsScreen(
                 }
             }
 
-            // Transaction List or Empty State (Rule 7)
+            // Account Filter Chips (Feature 1)
+            if (accounts.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedAccountId == null,
+                            onClick = { selectedAccountId = null },
+                            label = {
+                                Text(
+                                    text = if (isBn) "সব অ্যাকাউন্ট" else "All Accounts",
+                                    fontSize = 12.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            },
+                            modifier = Modifier.testTag("filter_account_all")
+                        )
+                    }
+
+                    items(accounts, key = { it.account.id }) { accWithBal ->
+                        val acc = accWithBal.account
+                        val isSelected = selectedAccountId == acc.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedAccountId = if (isSelected) null else acc.id
+                            },
+                            label = {
+                                Text(acc.name, fontSize = 12.sp)
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = getIconByName(acc.iconName),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                    tint = parseColorHex(acc.colorHex)
+                                )
+                            },
+                            modifier = Modifier.testTag("filter_account_${acc.id}")
+                        )
+                    }
+                }
+            }
+
+            // Transaction List or Empty State
             if (filteredTransactions.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -261,12 +319,30 @@ fun TransactionsScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    val isFiltering = selectedAccountId != null || selectedTypeFilter != null || searchQuery.isNotBlank() || selectedPeriodFilter != "THIS_MONTH"
                     EmptyStateView(
                         icon = Icons.AutoMirrored.Filled.ReceiptLong,
                         title = Localization.getString(Localization.Key.EMPTY_TRANSACTIONS, isBn),
-                        description = if (isBn) "পছন্দের ফিল্টারে বা সময়ে কোনো লেনদেন পাওয়া যায়নি।" else "No transactions match your current search or filter criteria.",
-                        actionLabel = if (isBn) "+ নতুন হিসাব যোগ করুন" else "+ Add Transaction",
-                        onActionClick = onNavigateToAddTransaction
+                        description = if (selectedAccountId != null) {
+                            if (isBn) "এই অ্যাকাউন্টের জন্য কোনো লেনদেন পাওয়া যায়নি।" else "No transactions found for this account."
+                        } else {
+                            if (isBn) "পছন্দের ফিল্টারে বা সময়ে কোনো লেনদেন পাওয়া যায়নি।" else "No transactions match your current search or filter criteria."
+                        },
+                        actionLabel = if (isFiltering) {
+                            if (isBn) "ফিল্টার রিসেট করুন" else "Reset Filters"
+                        } else {
+                            if (isBn) "+ নতুন হিসাব যোগ করুন" else "+ Add Transaction"
+                        },
+                        onActionClick = {
+                            if (isFiltering) {
+                                selectedAccountId = null
+                                selectedTypeFilter = null
+                                selectedPeriodFilter = "THIS_MONTH"
+                                searchQuery = ""
+                            } else {
+                                onNavigateToAddTransaction()
+                            }
+                        }
                     )
                 }
             } else {
@@ -299,7 +375,7 @@ fun TransactionsScreen(
                                     if (dayExpense > 0) {
                                         Text(
                                             text = "-${Formatters.formatAmount(dayExpense, currSymbol, useBnDigits, hideBalances)}",
-                                            style = MaterialTheme.typography.labelMedium,
+                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = ExpenseRed
                                         )
@@ -317,45 +393,17 @@ fun TransactionsScreen(
                         }
 
                         // List of Transactions for that Date
+                        // Direct TransactionRowItem with onLongClick for safe deletion
+                        // Allowing frictionless horizontal page swiping (Feature 2)
                         items(itemsForDate, key = { it.transaction.id }) { txItem ->
-                            val dismissState = rememberDismissState(
-                                confirmStateChange = { dismissValue ->
-                                    if (dismissValue == DismissValue.DismissedToStart) {
-                                        txToDelete = txItem
-                                        false
-                                    } else false
-                                }
-                            )
-
-                            SwipeToDismiss(
-                                state = dismissState,
-                                directions = setOf(DismissDirection.EndToStart),
-                                background = {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(ExpenseRed)
-                                            .padding(horizontal = 20.dp),
-                                        contentAlignment = Alignment.CenterEnd
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = Color.White
-                                        )
-                                    }
-                                },
-                                dismissContent = {
-                                    com.plusemon.hisab.ui.screens.dashboard.TransactionRowItem(
-                                        item = txItem,
-                                        isBangla = isBn,
-                                        useBnDigits = useBnDigits,
-                                        hideBalances = hideBalances,
-                                        currencySymbol = currSymbol,
-                                        onClick = { onTransactionClick(txItem) }
-                                    )
-                                }
+                            TransactionRowItem(
+                                item = txItem,
+                                isBangla = isBn,
+                                useBnDigits = useBnDigits,
+                                hideBalances = hideBalances,
+                                currencySymbol = currSymbol,
+                                onClick = { onTransactionClick(txItem) },
+                                onLongClick = { txToDelete = txItem }
                             )
                         }
                     }

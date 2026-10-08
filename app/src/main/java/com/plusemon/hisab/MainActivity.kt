@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -26,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.plusemon.hisab.data.model.TransactionType
@@ -48,6 +51,7 @@ import com.plusemon.hisab.ui.screens.transactions.TransactionsScreen
 import com.plusemon.hisab.ui.theme.HisabTheme
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -119,21 +123,37 @@ fun HisabMainApp(
     val updateUiState by viewModel.updateUiState.collectAsState()
     val isBn = settings.language == "bn"
 
-    var currentRoute by remember { mutableStateOf(Screen.Dashboard.route) }
+    val mainRoutes = remember {
+        listOf(
+            Screen.Dashboard.route,
+            Screen.Transactions.route,
+            Screen.BudgetsAndGoals.route,
+            Screen.Debts.route,
+            Screen.Reports.route
+        )
+    }
+
+    val pagerState = rememberPagerState(initialPage = 0) { mainRoutes.size }
+    val coroutineScope = rememberCoroutineScope()
+
+    var currentSubscreen by remember { mutableStateOf<String?>(null) }
     var selectedTransactionForEdit by remember { mutableStateOf<TransactionWithDetails?>(null) }
     var initialTransactionType by remember { mutableStateOf(TransactionType.EXPENSE) }
 
-    val isSubscreen = currentRoute in listOf(
-        Screen.AddEditTransaction.route,
-        Screen.Accounts.route,
-        Screen.Recurring.route,
-        Screen.Settings.route
-    )
+    val isSubscreen = currentSubscreen != null
+    val currentRoute = if (isSubscreen) currentSubscreen!! else mainRoutes[pagerState.currentPage]
 
     // Handle Back Press on Subscreens
     BackHandler(enabled = isSubscreen) {
-        currentRoute = Screen.Dashboard.route
+        currentSubscreen = null
         selectedTransactionForEdit = null
+    }
+
+    // Handle Back Press on Main Tabs: Return to Dashboard if on another tab
+    BackHandler(enabled = !isSubscreen && pagerState.currentPage != 0) {
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(0)
+        }
     }
 
     // App-wide in-app update dialog so checking, downloading progress, and ready alerts appear anywhere
@@ -162,8 +182,8 @@ fun HisabMainApp(
                     settings = settings,
                     onToggleDarkMode = { viewModel.toggleDarkMode() },
                     onToggleLanguage = { viewModel.toggleLanguage() },
-                    onProfileClick = { currentRoute = Screen.Settings.route },
-                    onSettingsClick = { currentRoute = Screen.Settings.route }
+                    onProfileClick = { currentSubscreen = Screen.Settings.route },
+                    onSettingsClick = { currentSubscreen = Screen.Settings.route }
                 )
             }
         },
@@ -172,7 +192,15 @@ fun HisabMainApp(
                 HisabBottomNav(
                     currentRoute = currentRoute,
                     isBangla = isBn,
-                    onNavigate = { route -> currentRoute = route }
+                    onNavigate = { route ->
+                        val targetIndex = mainRoutes.indexOf(route)
+                        if (targetIndex >= 0) {
+                            currentSubscreen = null
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(targetIndex)
+                            }
+                        }
+                    }
                 )
             }
         },
@@ -184,98 +212,116 @@ fun HisabMainApp(
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
         ) {
-            AnimatedContent(
-                targetState = currentRoute,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "ScreenTransition"
-            ) { route ->
-                when (route) {
-                    Screen.Dashboard.route -> {
-                        DashboardScreen(
-                            viewModel = viewModel,
-                            onNavigateToAddTransaction = { type ->
-                                initialTransactionType = type
-                                selectedTransactionForEdit = null
-                                currentRoute = Screen.AddEditTransaction.route
-                            },
-                            onNavigateToTransactions = { currentRoute = Screen.Transactions.route },
-                            onNavigateToAccounts = { currentRoute = Screen.Accounts.route },
-                            onNavigateToBudgets = { currentRoute = Screen.BudgetsAndGoals.route },
-                            onNavigateToDebts = { currentRoute = Screen.Debts.route },
-                            onNavigateToSettings = { currentRoute = Screen.Settings.route },
-                            onTransactionClick = { txItem ->
-                                selectedTransactionForEdit = txItem
-                                currentRoute = Screen.AddEditTransaction.route
-                            }
-                        )
-                    }
+            if (currentSubscreen != null) {
+                AnimatedContent(
+                    targetState = currentSubscreen,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "SubscreenTransition"
+                ) { subscreen ->
+                    when (subscreen) {
+                        Screen.AddEditTransaction.route -> {
+                            AddEditTransactionScreen(
+                                viewModel = viewModel,
+                                existingTransaction = selectedTransactionForEdit,
+                                initialType = initialTransactionType,
+                                onNavigateBack = {
+                                    currentSubscreen = null
+                                    selectedTransactionForEdit = null
+                                }
+                            )
+                        }
 
-                    Screen.Transactions.route -> {
-                        TransactionsScreen(
-                            viewModel = viewModel,
-                            onNavigateToAddTransaction = {
-                                selectedTransactionForEdit = null
-                                initialTransactionType = TransactionType.EXPENSE
-                                currentRoute = Screen.AddEditTransaction.route
-                            },
-                            onTransactionClick = { txItem ->
-                                selectedTransactionForEdit = txItem
-                                currentRoute = Screen.AddEditTransaction.route
-                            }
-                        )
-                    }
+                        Screen.Accounts.route -> {
+                            AccountsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentSubscreen = null }
+                            )
+                        }
 
-                    Screen.AddEditTransaction.route -> {
-                        AddEditTransactionScreen(
-                            viewModel = viewModel,
-                            existingTransaction = selectedTransactionForEdit,
-                            initialType = initialTransactionType,
-                            onNavigateBack = {
-                                currentRoute = Screen.Dashboard.route
-                                selectedTransactionForEdit = null
-                            }
-                        )
-                    }
+                        Screen.Recurring.route -> {
+                            RecurringScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentSubscreen = Screen.Settings.route }
+                            )
+                        }
 
-                    Screen.Accounts.route -> {
-                        AccountsScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { currentRoute = Screen.Dashboard.route }
-                        )
+                        Screen.Settings.route -> {
+                            SettingsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentSubscreen = null },
+                                onNavigateToRecurring = { currentSubscreen = Screen.Recurring.route }
+                            )
+                        }
                     }
+                }
+            } else {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            DashboardScreen(
+                                viewModel = viewModel,
+                                onNavigateToAddTransaction = { type ->
+                                    initialTransactionType = type
+                                    selectedTransactionForEdit = null
+                                    currentSubscreen = Screen.AddEditTransaction.route
+                                },
+                                onNavigateToTransactions = {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                                },
+                                onNavigateToAccounts = { currentSubscreen = Screen.Accounts.route },
+                                onNavigateToBudgets = {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(2) }
+                                },
+                                onNavigateToDebts = {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(3) }
+                                },
+                                onNavigateToSettings = { currentSubscreen = Screen.Settings.route },
+                                onTransactionClick = { txItem ->
+                                    selectedTransactionForEdit = txItem
+                                    currentSubscreen = Screen.AddEditTransaction.route
+                                }
+                            )
+                        }
 
-                    Screen.BudgetsAndGoals.route -> {
-                        BudgetsAndGoalsScreen(
-                            viewModel = viewModel
-                        )
-                    }
+                        1 -> {
+                            TransactionsScreen(
+                                viewModel = viewModel,
+                                onNavigateToAddTransaction = {
+                                    selectedTransactionForEdit = null
+                                    initialTransactionType = TransactionType.EXPENSE
+                                    currentSubscreen = Screen.AddEditTransaction.route
+                                },
+                                onTransactionClick = { txItem ->
+                                    selectedTransactionForEdit = txItem
+                                    currentSubscreen = Screen.AddEditTransaction.route
+                                }
+                            )
+                        }
 
-                    Screen.Debts.route -> {
-                        DebtsScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { currentRoute = Screen.Dashboard.route }
-                        )
-                    }
+                        2 -> {
+                            BudgetsAndGoalsScreen(
+                                viewModel = viewModel
+                            )
+                        }
 
-                    Screen.Reports.route -> {
-                        ReportsScreen(
-                            viewModel = viewModel
-                        )
-                    }
+                        3 -> {
+                            DebtsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                                }
+                            )
+                        }
 
-                    Screen.Recurring.route -> {
-                        RecurringScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { currentRoute = Screen.Settings.route }
-                        )
-                    }
-
-                    Screen.Settings.route -> {
-                        SettingsScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { currentRoute = Screen.Dashboard.route },
-                            onNavigateToRecurring = { currentRoute = Screen.Recurring.route }
-                        )
+                        4 -> {
+                            ReportsScreen(
+                                viewModel = viewModel
+                            )
+                        }
                     }
                 }
             }

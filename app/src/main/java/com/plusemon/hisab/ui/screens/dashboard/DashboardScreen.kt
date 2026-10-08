@@ -60,6 +60,9 @@ import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.data.model.DebtType
 import com.plusemon.hisab.data.model.TransactionType
 import com.plusemon.hisab.data.model.TransactionWithDetails
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
@@ -581,6 +584,7 @@ fun AccountCarouselCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionRowItem(
     item: TransactionWithDetails,
@@ -588,7 +592,8 @@ fun TransactionRowItem(
     useBnDigits: Boolean,
     hideBalances: Boolean,
     currencySymbol: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     val t = item.transaction
     val (typeColor, sign) = when (t.type) {
@@ -600,7 +605,17 @@ fun TransactionRowItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clip(RoundedCornerShape(12.dp))
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+                } else {
+                    Modifier.clickable { onClick() }
+                }
+            )
             .testTag("tx_item_${t.id}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -657,7 +672,7 @@ fun TransactionRowItem(
             // Main Info
             Column(modifier = Modifier.weight(1f)) {
                 val title = when (t.type) {
-                    TransactionType.TRANSFER -> "${item.account.name} → ${item.toAccount?.name ?: "Account"}"
+                    TransactionType.TRANSFER -> if (isBangla) "টাকা স্থানান্তর" else "Transfer"
                     else -> item.category?.localizedName(isBangla) ?: if (isBangla) "সাধারণ" else "General"
                 }
 
@@ -666,16 +681,55 @@ fun TransactionRowItem(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                val subtext = if (t.note.isNotBlank()) t.note else item.account.name
-                Text(
-                    text = subtext,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Account Name Badge
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (t.type == TransactionType.TRANSFER) Icons.Default.SwapHoriz else Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(11.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        val accountLabel = if (t.type == TransactionType.TRANSFER) {
+                            "${item.account.name} → ${item.toAccount?.name ?: (if (isBangla) "অ্যাকাউন্ট" else "Account")}"
+                        } else {
+                            item.account.name
+                        }
+                        Text(
+                            text = accountLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (t.note.isNotBlank()) {
+                    Text(
+                        text = t.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
 
             // Amount & Date
