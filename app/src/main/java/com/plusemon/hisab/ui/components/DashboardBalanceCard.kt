@@ -164,37 +164,37 @@ fun DashboardBalanceCard(
                             .testTag("hero_total_balance_text")
                     )
 
-                    // Optional Net Cash Flow Badge (Income - Expense)
+                    // High-Contrast Net Cash Flow Badge (Income - Expense)
                     val netSavings = monthIncome - monthExpense
                     if (monthIncome > 0 || monthExpense > 0) {
                         val isPositive = netSavings >= 0
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isPositive) Color(0xFF10B981).copy(alpha = 0.22f) else Color(0xFFEF4444).copy(alpha = 0.22f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isPositive) Color(0xFF064E3B) else Color(0xFF7F1D1D),
                             border = BorderStroke(
                                 1.dp,
-                                if (isPositive) Color(0xFF34D399).copy(alpha = 0.35f) else Color(0xFFF87171).copy(alpha = 0.35f)
+                                if (isPositive) Color(0xFF34D399).copy(alpha = 0.70f) else Color(0xFFF87171).copy(alpha = 0.70f)
                             ),
                             modifier = Modifier.padding(bottom = 4.dp, start = 8.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = if (isPositive) "+" else "-",
-                                    fontSize = 11.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isPositive) Color(0xFFA7F3D0) else Color(0xFFFECACA)
+                                    color = Color.White
                                 )
-                                Spacer(modifier = Modifier.width(2.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 CurrencyAmountText(
                                     amount = kotlin.math.abs(netSavings),
                                     currencySymbol = currencySymbol,
                                     useBanglaDigits = useBanglaDigits,
                                     hideBalances = hideBalances,
-                                    color = if (isPositive) Color(0xFFA7F3D0) else Color(0xFFFECACA),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -286,7 +286,7 @@ private fun IncomeSubCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
             // Header: Icon + Label
             Row(
@@ -295,7 +295,7 @@ private fun IncomeSubCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF10B981).copy(alpha = 0.30f)),
                     contentAlignment = Alignment.Center
@@ -304,16 +304,17 @@ private fun IncomeSubCard(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
                         tint = Color(0xFF6EE7B7),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBangla),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                    color = Color.White.copy(alpha = 0.90f),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
+                    softWrap = false,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -327,7 +328,7 @@ private fun IncomeSubCard(
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
                 color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,
@@ -358,7 +359,7 @@ private fun ExpenseSubCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
             // Header: Icon + Label
             Row(
@@ -367,7 +368,7 @@ private fun ExpenseSubCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFEF4444).copy(alpha = 0.30f)),
                     contentAlignment = Alignment.Center
@@ -376,16 +377,17 @@ private fun ExpenseSubCard(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = null,
                         tint = Color(0xFFFCA5A5),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBangla),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                    color = Color.White.copy(alpha = 0.90f),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
+                    softWrap = false,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -399,7 +401,7 @@ private fun ExpenseSubCard(
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
                 color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,

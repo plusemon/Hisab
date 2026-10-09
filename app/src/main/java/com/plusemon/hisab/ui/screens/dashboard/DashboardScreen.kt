@@ -77,6 +77,7 @@ import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.screens.nlp.QuickEntryDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
+import com.plusemon.hisab.ui.theme.ShopCreditAmber
 import com.plusemon.hisab.ui.theme.TransferBlue
 import com.plusemon.hisab.ui.viewmodel.AccountWithBalance
 import com.plusemon.hisab.ui.viewmodel.BudgetStatus
@@ -133,7 +134,7 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 80.dp)
+            .padding(bottom = 96.dp)
     ) {
         // In-App Updates Card (Available / Downloading Progress / Downloaded)
         when (val state = updateUiState) {
@@ -162,22 +163,22 @@ fun DashboardScreen(
             else -> {}
         }
 
-        // Natural Language Quick Entry Search Pill
+        // Natural Language Quick Entry Search Pill with enhanced breathing room and gap
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .clickable { showNlpDialog = true }
                 .testTag("nlp_quick_entry_pill"),
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(16.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -186,7 +187,7 @@ fun DashboardScreen(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Text(
                     text = if (isBn) "সহজ ভাষায় হিসাব লিখুন (যেমন: বাজার ১২০০)..." else "Type natural entry (e.g. lunch 250 cash)...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -237,7 +238,7 @@ fun DashboardScreen(
                         }
                         Column {
                             Text(text = if (isBn) "দোকান বাকি" else "Shop Credit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            CurrencyAmountText(amount = totalShopOwed, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ExpenseRed, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            CurrencyAmountText(amount = totalShopOwed, currencySymbol = currSymbol, useBanglaDigits = useBnDigits, hideBalances = hideBalances, color = ShopCreditAmber, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -258,7 +259,16 @@ fun DashboardScreen(
             onExpenseClick = onNavigateToTransactions
         )
 
-        // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer] (Restyled to 12.dp radius instead of pills)
+        // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer]
+        // Balanced tonal container styling with prominent icon & text colors
+        val isDarkTheme = settings.isDarkMode
+        val expenseContainer = if (isDarkTheme) ExpenseRed.copy(alpha = 0.16f) else Color(0xFFFEE2E2)
+        val expenseContent = if (isDarkTheme) Color(0xFFF87171) else Color(0xFFDC2626)
+        val incomeContainer = if (isDarkTheme) IncomeGreen.copy(alpha = 0.16f) else Color(0xFFDCFCE7)
+        val incomeContent = if (isDarkTheme) Color(0xFF4ADE80) else Color(0xFF16A34A)
+        val transferContainer = if (isDarkTheme) TransferBlue.copy(alpha = 0.16f) else Color(0xFFDBEAFE)
+        val transferContent = if (isDarkTheme) Color(0xFF60A5FA) else Color(0xFF2563EB)
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -269,9 +279,13 @@ fun DashboardScreen(
                 onClick = { onNavigateToAddTransaction(TransactionType.EXPENSE) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(46.dp)
                     .testTag("fast_add_expense_btn"),
-                colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = expenseContainer,
+                    contentColor = expenseContent
+                ),
+                border = BorderStroke(1.dp, expenseContent.copy(alpha = 0.22f)),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
             ) {
@@ -279,11 +293,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -295,9 +309,13 @@ fun DashboardScreen(
                 onClick = { onNavigateToAddTransaction(TransactionType.INCOME) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(46.dp)
                     .testTag("fast_add_income_btn"),
-                colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = incomeContainer,
+                    contentColor = incomeContent
+                ),
+                border = BorderStroke(1.dp, incomeContent.copy(alpha = 0.22f)),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
             ) {
@@ -305,11 +323,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.INCOME_SHORT, isBn),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -321,9 +339,13 @@ fun DashboardScreen(
                 onClick = { onNavigateToAddTransaction(TransactionType.TRANSFER) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(46.dp)
                     .testTag("fast_transfer_btn"),
-                colors = ButtonDefaults.buttonColors(containerColor = TransferBlue),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = transferContainer,
+                    contentColor = transferContent
+                ),
+                border = BorderStroke(1.dp, transferContent.copy(alpha = 0.22f)),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
             ) {
@@ -331,11 +353,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

@@ -73,7 +73,7 @@ fun HisabTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             // Main Row: User Profile & Action Buttons
             Row(
@@ -88,7 +88,7 @@ fun HisabTopBar(
                         .weight(1f, fill = false)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { onProfileClick() }
-                        .padding(2.dp)
+                        .padding(vertical = 2.dp, horizontal = 2.dp)
                 ) {
                     // User Avatar
                     UserAvatar(
@@ -123,7 +123,7 @@ fun HisabTopBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Right: Action Controls Group (Dark Mode, Language, Settings)
                 Row(
@@ -203,9 +203,9 @@ fun HisabTopBar(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Sub Row: Real-time Status Badge & Current Date
+            // Sub Row: Real-time Status Badge & Current Date Vertically Aligned
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -217,12 +217,19 @@ fun HisabTopBar(
                     onSyncClick = onSyncClick
                 )
 
-                val dateText = Formatters.formatDate(System.currentTimeMillis(), isBangla = isBn)
-                Text(
-                    text = dateText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    val dateText = Formatters.formatDate(System.currentTimeMillis(), isBangla = isBn)
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
     }

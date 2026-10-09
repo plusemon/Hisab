@@ -18,6 +18,7 @@ val ExpenseRed = Color(0xFFDC2626) // Solid Crimson
 val IncomeGreen = Color(0xFF16A34A) // Solid Green
 val TransferBlue = Color(0xFF2563EB) // Solid Blue
 val AmberTertiary = Color(0xFFD97706) // Solid Amber
+val ShopCreditAmber = Color(0xFFD97706) // Solid Amber for Shop Credit
 
 // Neutral & Surface Light (Flat Design System)
 val LightBackground = Color(0xFFF8FAFC)
