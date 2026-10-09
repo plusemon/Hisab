@@ -68,6 +68,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.AmberTertiary
@@ -79,7 +80,8 @@ import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 @Composable
 fun ReportsScreen(
     viewModel: HisabViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val settings by viewModel.settings.collectAsState()
     val isBn = settings.language == "bn"
@@ -121,7 +123,15 @@ fun ReportsScreen(
     }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            if (onNavigateBack != null) {
+                DetailTopAppBar(
+                    title = Localization.getString(Localization.Key.REPORTS, isBn),
+                    onNavigateBack = onNavigateBack
+                )
+            }
+        }
     ) { padding ->
         Column(
             modifier = modifier
@@ -130,19 +140,21 @@ fun ReportsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 100.dp)
         ) {
-            // Screen Header Title
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = Localization.getString(Localization.Key.REPORTS, isBn),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            if (onNavigateBack == null) {
+                // Screen Header Title
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = Localization.getString(Localization.Key.REPORTS, isBn),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             // Period Selector Chips

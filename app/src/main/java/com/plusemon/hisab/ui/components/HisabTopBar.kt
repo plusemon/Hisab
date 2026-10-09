@@ -15,9 +15,9 @@ fun HisabTopBar(
     settings: UserSettings,
     syncStatus: AppSyncStatus = AppSyncStatus.Synced(),
     onSyncClick: () -> Unit = {},
-    onToggleDarkMode: () -> Unit,
-    onToggleLanguage: () -> Unit,
-    onProfileClick: () -> Unit,
+    onToggleDarkMode: () -> Unit = {},
+    onToggleLanguage: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onSettingsClick: () -> Unit = onProfileClick,
     modifier: Modifier = Modifier
 ) {

@@ -239,4 +239,17 @@ class ExampleRobolectricTest {
     assertEquals("Photo URL must persist across app restart", testPhotoUrl, loadedUser?.photoUrl)
     assertEquals(googleEmail, loadedUser?.email)
   }
+
+  @Test
+  fun `more navigation routes and localization keys are properly defined`() {
+    assertEquals("more", com.plusemon.hisab.ui.navigation.Screen.More.route)
+    assertEquals("more", com.plusemon.hisab.ui.navigation.MoreRoute)
+    assertEquals("more_graph", com.plusemon.hisab.ui.navigation.MoreGraph)
+    assertEquals("categories", com.plusemon.hisab.ui.navigation.Screen.Categories.route)
+
+    val moreBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.MORE, isBangla = true)
+    val moreEn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.MORE, isBangla = false)
+    assertEquals("অন্যান্য", moreBn)
+    assertEquals("More", moreEn)
+  }
 }

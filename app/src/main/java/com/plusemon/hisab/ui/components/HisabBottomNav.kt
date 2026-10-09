@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PieChart
@@ -51,7 +51,7 @@ fun HisabBottomNav(
         NavItem("transactions", Localization.Key.RECENT_TRANSACTIONS, Icons.AutoMirrored.Filled.ReceiptLong, "nav_transactions"),
         NavItem("budgets_goals", Localization.Key.BUDGETS, Icons.Default.PieChart, "nav_budgets"),
         NavItem("debts", Localization.Key.DEBTS_LOANS, Icons.Default.People, "nav_debts"),
-        NavItem("reports", Localization.Key.REPORTS, Icons.Default.BarChart, "nav_reports")
+        NavItem("more", Localization.Key.MORE, Icons.Default.GridView, "nav_more")
     )
 
     Surface(
@@ -71,7 +71,7 @@ fun HisabBottomNav(
                     "transactions" -> if (isBangla) "লেনদেন" else "History"
                     "budgets_goals" -> if (isBangla) "বাজেট" else "Budgets"
                     "debts" -> if (isBangla) "দেনা-পাওনা" else "Debts"
-                    "reports" -> if (isBangla) "রিপোর্ট" else "Reports"
+                    "more" -> if (isBangla) "আরও" else "More"
                     else -> Localization.getString(item.titleKey, isBangla)
                 }
 

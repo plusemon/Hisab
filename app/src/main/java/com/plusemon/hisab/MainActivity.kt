@@ -41,8 +41,10 @@ import com.plusemon.hisab.ui.navigation.Screen
 import com.plusemon.hisab.ui.screens.accounts.AccountsScreen
 import com.plusemon.hisab.ui.screens.auth.AuthScreen
 import com.plusemon.hisab.ui.screens.budgets.BudgetsAndGoalsScreen
+import com.plusemon.hisab.ui.screens.categories.ManageCategoriesScreen
 import com.plusemon.hisab.ui.screens.dashboard.DashboardScreen
 import com.plusemon.hisab.ui.screens.debts.DebtsScreen
+import com.plusemon.hisab.ui.screens.more.MoreScreen
 import com.plusemon.hisab.ui.screens.recurring.RecurringScreen
 import com.plusemon.hisab.ui.screens.reports.ReportsScreen
 import com.plusemon.hisab.ui.screens.settings.SettingsScreen
@@ -130,7 +132,7 @@ fun HisabMainApp(
             Screen.Transactions.route,
             Screen.BudgetsAndGoals.route,
             Screen.Debts.route,
-            Screen.Reports.route
+            Screen.More.route
         )
     }
 
@@ -191,10 +193,7 @@ fun HisabMainApp(
                     settings = settings,
                     syncStatus = syncStatus,
                     onSyncClick = { viewModel.triggerManualSync() },
-                    onToggleDarkMode = { viewModel.toggleDarkMode() },
-                    onToggleLanguage = { viewModel.toggleLanguage() },
-                    onProfileClick = { currentSubscreen = Screen.Settings.route },
-                    onSettingsClick = { currentSubscreen = Screen.Settings.route }
+                    onProfileClick = { currentSubscreen = Screen.Settings.route }
                 )
             }
         },
@@ -244,6 +243,20 @@ fun HisabMainApp(
 
                         Screen.Accounts.route -> {
                             AccountsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentSubscreen = null }
+                            )
+                        }
+
+                        Screen.Categories.route -> {
+                            ManageCategoriesScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentSubscreen = null }
+                            )
+                        }
+
+                        Screen.Reports.route -> {
+                            ReportsScreen(
                                 viewModel = viewModel,
                                 onNavigateBack = { currentSubscreen = null }
                             )
@@ -332,8 +345,12 @@ fun HisabMainApp(
                         }
 
                         4 -> {
-                            ReportsScreen(
-                                viewModel = viewModel
+                            MoreScreen(
+                                viewModel = viewModel,
+                                onNavigateToReports = { currentSubscreen = Screen.Reports.route },
+                                onNavigateToAccounts = { currentSubscreen = Screen.Accounts.route },
+                                onNavigateToCategories = { currentSubscreen = Screen.Categories.route },
+                                onNavigateToSettings = { currentSubscreen = Screen.Settings.route }
                             )
                         }
                     }

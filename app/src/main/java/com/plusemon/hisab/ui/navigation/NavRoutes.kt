@@ -10,6 +10,11 @@ sealed class Screen(val route: String) {
     object BudgetsAndGoals : Screen("budgets_goals")
     object Debts : Screen("debts")
     object Reports : Screen("reports")
+    object More : Screen("more")
     object Recurring : Screen("recurring")
     object Settings : Screen("settings")
+    object Categories : Screen("categories")
 }
+
+const val MoreRoute = "more"
+const val MoreGraph = "more_graph"
