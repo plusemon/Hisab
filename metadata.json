@@ -1,6 +1,6 @@
 {
   "name": "Hisab",
-  "description": "Daily expense and multi-account tracker with budgets, debts, savings goals, reports, and natural language entry in Bangla and English.",
+  "description": "Daily expense and multi-account tracker with budgets, debts, savings goals, and reports in Bangla and English.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

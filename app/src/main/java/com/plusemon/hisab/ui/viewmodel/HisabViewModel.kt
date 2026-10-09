@@ -35,8 +35,6 @@ import com.plusemon.hisab.data.repository.UpdateManager
 import com.plusemon.hisab.data.repository.UpdateRepository
 import com.plusemon.hisab.domain.util.CsvExporterImporter
 import com.plusemon.hisab.domain.util.Formatters
-import com.plusemon.hisab.domain.util.NaturalLanguageParser
-import com.plusemon.hisab.domain.util.ParsedQuickEntry
 import com.plusemon.hisab.domain.util.VersionUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -863,67 +861,6 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
             authRepository.deleteAccountAndData(user.id)
-        }
-    }
-
-    // -------------------------------------------------------------
-    // QUICK NATURAL LANGUAGE ENTRY
-    // -------------------------------------------------------------
-
-    fun parseQuickEntry(text: String): ParsedQuickEntry? {
-        val rawAccounts = _accountsWithBalances.value.map { it.account }
-        return NaturalLanguageParser.parse(text, rawAccounts, _categories.value)
-    }
-
-    fun addParsedTransaction(parsed: ParsedQuickEntry) {
-        val user = currentUser.value ?: return
-        viewModelScope.launch {
-            markSaving()
-            try {
-                var accId = parsed.matchedAccount?.id ?: _accountsWithBalances.value.firstOrNull()?.account?.id ?: 0L
-                if (accId <= 0L) {
-                    val fallback = _accountsWithBalances.value.firstOrNull()?.account ?: db.accountDao().getFirstActiveAccount(user.id)
-                    if (fallback != null) {
-                        accId = fallback.id
-                    } else {
-                        val newAcc = UserAccount(
-                            userId = user.id,
-                            name = "Cash",
-                            type = AccountType.CASH,
-                            currencyCode = "BDT",
-                            startingBalance = 0.0,
-                            colorHex = "#0F766E",
-                            iconName = "payments"
-                        )
-                        accId = hisabRepository.addAccount(newAcc)
-                    }
-                }
-                val record = TransactionRecord(
-                    userId = user.id,
-                    accountId = accId,
-                    categoryId = if (parsed.type != TransactionType.TRANSFER) parsed.matchedCategory?.id else null,
-                    toAccountId = if (parsed.type == TransactionType.TRANSFER) parsed.matchedToAccount?.id else null,
-                    amount = parsed.amount,
-                    type = parsed.type,
-                    dateTimestamp = System.currentTimeMillis(),
-                    note = parsed.note
-                )
-                val newId = hisabRepository.insertTransaction(record)
-                val savedRecord = record.copy(id = newId)
-                viewModelScope.launch {
-                    try {
-                        firestoreRepository.saveTransaction(user.id, savedRecord)
-                    } catch (e: Exception) {
-                        android.util.Log.w("HisabViewModel", "Firestore async save error: ${e.message}")
-                    }
-                }
-                markSaved()
-                _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সফলভাবে যুক্ত হয়েছে" else "Entry saved successfully")
-            } catch (e: Exception) {
-                _appSyncStatus.value = AppSyncStatus.Synced()
-                android.util.Log.e("HisabViewModel", "Failed to add parsed transaction: ${e.message}", e)
-                _snackbarMessage.emit(if (_settings.value.language == "bn") "হিসাব সংরক্ষণে ত্রুটি: ${e.localizedMessage}" else "Failed to save entry: ${e.localizedMessage}")
-            }
         }
     }
 

@@ -28,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Payments
@@ -76,7 +75,6 @@ import com.plusemon.hisab.ui.components.UpdateDownloadingCard
 import com.plusemon.hisab.ui.components.UpdateReadyCard
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
-import com.plusemon.hisab.ui.screens.nlp.QuickEntryDialog
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.theme.ShopCreditAmber
@@ -122,16 +120,7 @@ fun DashboardScreen(
     val selectedMonthExpense by viewModel.selectedMonthExpense.collectAsState()
     val selectedMonthBalance by viewModel.selectedMonthBalance.collectAsState()
 
-    var showNlpDialog by remember { mutableStateOf(false) }
     var showMonthPickerSheet by remember { mutableStateOf(false) }
-
-    if (showNlpDialog) {
-        QuickEntryDialog(
-            viewModel = viewModel,
-            isBangla = isBn,
-            onDismiss = { showNlpDialog = false }
-        )
-    }
 
     if (showMonthPickerSheet) {
         MonthYearPickerBottomSheet(
@@ -177,39 +166,6 @@ fun DashboardScreen(
                 )
             }
             else -> {}
-        }
-
-        // Natural Language Quick Entry Search Pill with enhanced breathing room and gap
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable { showNlpDialog = true }
-                .testTag("nlp_quick_entry_pill"),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Text(
-                    text = if (isBn) "সহজ ভাষায় হিসাব লিখুন (যেমন: বাজার ১২০০)..." else "Type natural entry (e.g. lunch 250 cash)...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
 
         // Lending & Shop Credit Informational Summary Card

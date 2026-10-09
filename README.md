@@ -9,7 +9,6 @@
 - **Dashboard & Analytics**: Real-time overview of net worth, monthly cash flow, recent transactions, budget utilization, and quick summary cards.
 - **Multi-Account Management**: Track cash, bank accounts, mobile wallets (bKash/Nagad/Rocket style or customized), and credit cards in one place.
 - **Transaction Tracking**: Add, edit, categorize, and filter income and expense transactions with custom categories, icons, and notes.
-- **Natural Language Quick Entry**: Quickly log expenses or incomes using natural language parsing (e.g., "Spent 500 on groceries today").
 - **Budgets & Savings Goals**: Set monthly or category-specific spending budgets and track progress toward financial savings goals.
 - **Loan & Debt Tracking**: Manage lent/borrowed money, track repayments, and monitor shop credit/purchases.
 - **Recurring Transactions**: Automate recurring bills, subscriptions, or salaries with flexible frequency rules.
@@ -39,7 +38,7 @@
 │   │   ├── model/          # Entity data classes
 │   │   └── repository/     # Repositories (HisabRepository, AuthRepository)
 │   ├── domain/
-│   │   └── util/           # CSV importer/exporter, Formatters, NLP parser, Localization
+│   │   └── util/           # CSV importer/exporter, Formatters, Localization
 │   └── ui/
 │       ├── components/     # Reusable Compose components (TopBar, BottomNav, Badges, etc.)
 │       ├── navigation/     # NavRoutes definitions

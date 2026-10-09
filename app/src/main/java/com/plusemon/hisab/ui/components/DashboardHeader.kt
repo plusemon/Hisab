@@ -43,15 +43,13 @@ import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.data.model.AppSyncStatus
 import com.plusemon.hisab.data.model.User
 import com.plusemon.hisab.data.model.UserSettings
-import com.plusemon.hisab.domain.util.Formatters
 
 /**
  * Compact Dashboard Header displayed ONLY on the root tabs (Home/Dashboard).
  * Features:
  * 1. Profile row: Avatar + Greeting & User Name on left;
- *    Lightweight IconButtons (24dp icon in 40dp touch target) for Theme, Language, and Settings on right.
- * 2. Subtle inline sync and date strip directly below profile row.
- * 3. Seamless statusBarsPadding with surface theme tokens.
+ *    Clean real-time notification / sync indicator on right.
+ * 2. Seamless statusBarsPadding with surface theme tokens.
  */
 @Composable
 fun DashboardHeader(
@@ -142,17 +140,6 @@ fun DashboardHeader(
                     onSyncClick = onSyncClick
                 )
             }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Subtle date line directly below
-            val dateText = Formatters.formatDate(System.currentTimeMillis(), isBangla = isBn)
-            Text(
-                text = dateText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
-                modifier = Modifier.padding(start = 2.dp, top = 2.dp)
-            )
         }
     }
 }

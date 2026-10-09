@@ -287,11 +287,14 @@ fun AddEditTransactionScreen(
                         },
                         text = {
                             Text(
-                                text = Localization.getString(Localization.Key.ADD_EXPENSE, isBn),
+                                text = Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = if (transactionType == TransactionType.EXPENSE) ExpenseRed else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
+                        },
+                        modifier = Modifier.testTag("tab_expense")
                     )
                     Tab(
                         selected = transactionType == TransactionType.INCOME,
@@ -301,11 +304,14 @@ fun AddEditTransactionScreen(
                         },
                         text = {
                             Text(
-                                text = Localization.getString(Localization.Key.ADD_INCOME, isBn),
+                                text = Localization.getString(Localization.Key.INCOME_SHORT, isBn),
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = if (transactionType == TransactionType.INCOME) IncomeGreen else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
+                        },
+                        modifier = Modifier.testTag("tab_income")
                     )
                     Tab(
                         selected = transactionType == TransactionType.TRANSFER,
@@ -315,11 +321,14 @@ fun AddEditTransactionScreen(
                         },
                         text = {
                             Text(
-                                text = Localization.getString(Localization.Key.TRANSFER, isBn),
+                                text = Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = if (transactionType == TransactionType.TRANSFER) TransferBlue else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
+                        },
+                        modifier = Modifier.testTag("tab_transfer")
                     )
                 }
             }

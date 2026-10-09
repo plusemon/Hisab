@@ -219,7 +219,7 @@ fun TransactionsScreen(
                         },
                         label = {
                             Text(
-                                Localization.getString(Localization.Key.ADD_EXPENSE, isBn),
+                                Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
                                 color = ExpenseRed,
                                 fontSize = 12.sp
                             )
@@ -234,7 +234,7 @@ fun TransactionsScreen(
                         },
                         label = {
                             Text(
-                                Localization.getString(Localization.Key.ADD_INCOME, isBn),
+                                Localization.getString(Localization.Key.INCOME_SHORT, isBn),
                                 color = IncomeGreen,
                                 fontSize = 12.sp
                             )
@@ -249,7 +249,7 @@ fun TransactionsScreen(
                         },
                         label = {
                             Text(
-                                Localization.getString(Localization.Key.TRANSFER, isBn),
+                                Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
                                 color = TransferBlue,
                                 fontSize = 12.sp
                             )
