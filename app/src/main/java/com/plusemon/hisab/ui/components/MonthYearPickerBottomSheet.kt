@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,9 +54,11 @@ import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.data.model.YearMonth
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
+import com.plusemon.hisab.ui.theme.EmeraldPrimary
 
 /**
- * Modern, dark-mode compliant Month-Year Picker ModalBottomSheet.
+ * Modern, theme-adaptive Month-Year Picker ModalBottomSheet.
+ * Supports both crisp Light Mode and sleek Dark Mode.
  * Allows interactive switching across years and selecting any month (January to December),
  * with quick-action chips for "This Month" and "Last Month", and prominent highlight on active selection.
  */
@@ -74,15 +75,29 @@ fun MonthYearPickerBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val now = remember { YearMonth.now() }
     var pickerYear by remember(selectedMonth.year) { mutableIntStateOf(selectedMonth.year) }
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+
+    // Theme adaptive colors
+    val sheetContainerColor = if (isDark) Color(0xFF161F30) else MaterialTheme.colorScheme.surface
+    val dragHandleColor = if (isDark) Color(0xFF475569) else MaterialTheme.colorScheme.outlineVariant
+    val iconContainerBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF0FDFA)
+    val calendarIconTint = if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+    val titleTextColor = if (isDark) Color(0xFFF1F5F9) else MaterialTheme.colorScheme.onSurface
+    val subtitleTextColor = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val closeIconTint = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val barBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val barBorder = if (isDark) Color(0xFF334155).copy(alpha = 0.7f) else MaterialTheme.colorScheme.outlineVariant
+    val arrowTint = if (isDark) Color(0xFFE2E8F0) else MaterialTheme.colorScheme.onSurface
+    val yearTextColor = if (isDark) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.onSurface
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = Color(0xFF161F30),
+        containerColor = sheetContainerColor,
         dragHandle = {
             BottomSheetDefaults.DragHandle(
-                color = Color(0xFF475569)
+                color = dragHandleColor
             )
         },
         modifier = modifier.testTag("month_year_bottom_sheet")
@@ -104,13 +119,13 @@ fun MonthYearPickerBottomSheet(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E293B)),
+                            .background(iconContainerBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
                             contentDescription = null,
-                            tint = Color(0xFF2DD4BF),
+                            tint = calendarIconTint,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -120,12 +135,12 @@ fun MonthYearPickerBottomSheet(
                             text = Localization.getString(Localization.Key.SELECT_MONTH, isBangla),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFF1F5F9)
+                            color = titleTextColor
                         )
                         Text(
                             text = Formatters.formatMonthYear(selectedMonth.toMonthYearString(), isBangla),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF94A3B8)
+                            color = subtitleTextColor
                         )
                     }
                 }
@@ -137,7 +152,7 @@ fun MonthYearPickerBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = Localization.getString(Localization.Key.CANCEL, isBangla),
-                        tint = Color(0xFF94A3B8)
+                        tint = closeIconTint
                     )
                 }
             }
@@ -174,16 +189,20 @@ fun MonthYearPickerBottomSheet(
                     },
                     shape = RoundedCornerShape(20.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        containerColor = Color(0xFF1E293B),
-                        labelColor = Color(0xFFCBD5E1),
-                        iconColor = Color(0xFF94A3B8),
-                        selectedContainerColor = Color(0xFF0F766E),
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                        labelColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
+                        iconColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        selectedContainerColor = if (isDark) Color(0xFF0F766E) else EmeraldPrimary,
                         selectedLabelColor = Color(0xFFFFFFFF),
-                        selectedLeadingIconColor = Color(0xFF2DD4BF)
+                        selectedLeadingIconColor = if (isDark) Color(0xFF2DD4BF) else Color(0xFFFFFFFF)
                     ),
                     border = BorderStroke(
                         1.dp,
-                        if (isThisMonthSelected) Color(0xFF2DD4BF) else Color(0xFF334155).copy(alpha = 0.8f)
+                        if (isThisMonthSelected) {
+                            if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+                        } else {
+                            if (isDark) Color(0xFF334155).copy(alpha = 0.8f) else MaterialTheme.colorScheme.outlineVariant
+                        }
                     ),
                     modifier = Modifier.testTag("quick_chip_this_month")
                 )
@@ -213,16 +232,20 @@ fun MonthYearPickerBottomSheet(
                     },
                     shape = RoundedCornerShape(20.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        containerColor = Color(0xFF1E293B),
-                        labelColor = Color(0xFFCBD5E1),
-                        iconColor = Color(0xFF94A3B8),
-                        selectedContainerColor = Color(0xFF0F766E),
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                        labelColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
+                        iconColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        selectedContainerColor = if (isDark) Color(0xFF0F766E) else EmeraldPrimary,
                         selectedLabelColor = Color(0xFFFFFFFF),
-                        selectedLeadingIconColor = Color(0xFF2DD4BF)
+                        selectedLeadingIconColor = if (isDark) Color(0xFF2DD4BF) else Color(0xFFFFFFFF)
                     ),
                     border = BorderStroke(
                         1.dp,
-                        if (isLastMonthSelected) Color(0xFF2DD4BF) else Color(0xFF334155).copy(alpha = 0.8f)
+                        if (isLastMonthSelected) {
+                            if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+                        } else {
+                            if (isDark) Color(0xFF334155).copy(alpha = 0.8f) else MaterialTheme.colorScheme.outlineVariant
+                        }
                     ),
                     modifier = Modifier.testTag("quick_chip_last_month")
                 )
@@ -233,8 +256,8 @@ fun MonthYearPickerBottomSheet(
             // Year Selector Bar
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF1E293B),
-                border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.7f)),
+                color = barBg,
+                border = BorderStroke(1.dp, barBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -251,7 +274,7 @@ fun MonthYearPickerBottomSheet(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = Localization.getString(Localization.Key.CHANGE_YEAR, isBangla),
-                            tint = Color(0xFFE2E8F0)
+                            tint = arrowTint
                         )
                     }
 
@@ -264,7 +287,7 @@ fun MonthYearPickerBottomSheet(
                             text = yearText,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFFFFF),
+                            color = yearTextColor,
                             modifier = Modifier.testTag("month_picker_year_text")
                         )
 
@@ -272,8 +295,8 @@ fun MonthYearPickerBottomSheet(
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF0F766E).copy(alpha = 0.25f),
-                                border = BorderStroke(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.4f)),
+                                color = if (isDark) Color(0xFF0F766E).copy(alpha = 0.25f) else Color(0xFFF0FDFA),
+                                border = BorderStroke(1.dp, if (isDark) Color(0xFF2DD4BF).copy(alpha = 0.4f) else EmeraldPrimary.copy(alpha = 0.35f)),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable { pickerYear = now.year }
@@ -281,7 +304,7 @@ fun MonthYearPickerBottomSheet(
                                 Text(
                                     text = if (useBanglaDigits) Formatters.toBanglaDigits(now.year.toString()) else now.year.toString(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF2DD4BF),
+                                    color = if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
@@ -296,7 +319,7 @@ fun MonthYearPickerBottomSheet(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = Localization.getString(Localization.Key.CHANGE_YEAR, isBangla),
-                            tint = Color(0xFFE2E8F0)
+                            tint = arrowTint
                         )
                     }
                 }
@@ -325,6 +348,7 @@ fun MonthYearPickerBottomSheet(
                                 isSelected = isSelected,
                                 isCurrentMonth = isRealCurrentMonth,
                                 isBangla = isBangla,
+                                isDark = isDark,
                                 onClick = {
                                     val newSelection = YearMonth(pickerYear, monthNumber)
                                     onMonthSelected(newSelection)
@@ -350,7 +374,7 @@ fun MonthYearPickerBottomSheet(
                 ) {
                     Text(
                         text = Localization.getString(Localization.Key.CANCEL, isBangla),
-                        color = Color(0xFF94A3B8),
+                        color = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -365,28 +389,28 @@ private fun MonthGridCell(
     isSelected: Boolean,
     isCurrentMonth: Boolean,
     isBangla: Boolean,
+    isDark: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val monthName = Formatters.getMonthName(monthNumber, isBangla)
-    val shortName = Formatters.getMonthShortName(monthNumber, isBangla)
 
     val containerColor = when {
-        isSelected -> Color(0xFF0F766E)
-        isCurrentMonth -> Color(0xFF1E293B)
-        else -> Color(0xFF162235)
+        isSelected -> if (isDark) Color(0xFF0F766E) else EmeraldPrimary
+        isCurrentMonth -> if (isDark) Color(0xFF1E293B) else Color(0xFFF0FDFA)
+        else -> if (isDark) Color(0xFF162235) else Color(0xFFFFFFFF)
     }
 
     val borderColor = when {
-        isSelected -> Color(0xFF2DD4BF)
-        isCurrentMonth -> Color(0xFF2DD4BF).copy(alpha = 0.5f)
-        else -> Color(0xFF334155).copy(alpha = 0.6f)
+        isSelected -> if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+        isCurrentMonth -> if (isDark) Color(0xFF2DD4BF).copy(alpha = 0.5f) else EmeraldPrimary.copy(alpha = 0.45f)
+        else -> if (isDark) Color(0xFF334155).copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
     }
 
     val textColor = when {
         isSelected -> Color(0xFFFFFFFF)
-        isCurrentMonth -> Color(0xFF2DD4BF)
-        else -> Color(0xFFE2E8F0)
+        isCurrentMonth -> if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+        else -> if (isDark) Color(0xFFE2E8F0) else MaterialTheme.colorScheme.onSurface
     }
 
     Surface(
@@ -427,7 +451,7 @@ private fun MonthGridCell(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = Color(0xFF2DD4BF),
+                            tint = if (isDark) Color(0xFF2DD4BF) else Color.White,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -437,7 +461,7 @@ private fun MonthGridCell(
                     Text(
                         text = if (isBangla) "চলতি" else "Current",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = Color(0xFF2DD4BF),
+                        color = if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,11 +43,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
+import com.plusemon.hisab.ui.theme.EmeraldPrimary
 
 /**
- * Modernized, dark-mode integrated Dashboard Balance & Monthly Overview Hero Card.
- * Adheres to dark surface hierarchy with high-contrast typography, dedicated dark surface tiles,
- * and sleek fintech indicators.
+ * Modern, adaptive Dashboard Balance & Monthly Overview Hero Card.
+ * Dynamically supports both crisp Light Mode and sleek Dark Mode with
+ * appropriate contrast, borders, and fintech indicators.
  */
 @Composable
 fun DashboardBalanceCard(
@@ -65,6 +67,33 @@ fun DashboardBalanceCard(
     modifier: Modifier = Modifier
 ) {
     val isCurrentMonth = currentMonthYear == Formatters.getCurrentMonthYear()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+
+    // Theme adaptive colors
+    val cardBackgroundBrush = if (isDark) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF161F30),
+                Color(0xFF0F1A2A)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFFFFFFFF),
+                Color(0xFFF8FAFC)
+            )
+        )
+    }
+
+    val cardBorderColor = if (isDark) Color(0xFF1E3A4A) else MaterialTheme.colorScheme.outlineVariant
+    val titleColor = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val monthChipBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
+    val monthChipBorder = if (isDark) Color(0xFF334155).copy(alpha = 0.8f) else MaterialTheme.colorScheme.outlineVariant
+    val monthChipIconTint = if (isDark) Color(0xFF2DD4BF) else EmeraldPrimary
+    val monthChipTextColor = if (isDark) Color(0xFFE2E8F0) else MaterialTheme.colorScheme.onSurface
+    val monthChipChevronTint = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val heroAmountColor = if (isDark) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.onSurface
 
     Card(
         modifier = modifier
@@ -72,30 +101,32 @@ fun DashboardBalanceCard(
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag("dashboard_balance_hero_card"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF161F30)),
-        border = BorderStroke(1.dp, Color(0xFF1E3A4A)),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF161F30) else MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF161F30),
-                            Color(0xFF0F1A2A)
-                        )
-                    )
-                )
+                .background(brush = cardBackgroundBrush)
                 .drawBehind {
-                    // Subtle top radial glow for a sleek, modern fintech aesthetic
+                    // Subtle top radial glow for sleek, modern aesthetic
+                    val glowColors = if (isDark) {
+                        listOf(
+                            Color(0xFF2DD4BF).copy(alpha = 0.07f),
+                            Color(0xFF0F766E).copy(alpha = 0.03f),
+                            Color.Transparent
+                        )
+                    } else {
+                        listOf(
+                            Color(0xFF0F766E).copy(alpha = 0.035f),
+                            Color(0xFF2DD4BF).copy(alpha = 0.015f),
+                            Color.Transparent
+                        )
+                    }
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF2DD4BF).copy(alpha = 0.07f),
-                                Color(0xFF0F766E).copy(alpha = 0.03f),
-                                Color.Transparent
-                            ),
+                            colors = glowColors,
                             center = Offset(size.width * 0.5f, 0f),
                             radius = size.width * 0.75f
                         ),
@@ -119,15 +150,15 @@ fun DashboardBalanceCard(
                             Localization.getString(Localization.Key.MONTH_NET_BALANCE, isBangla)
                         },
                         style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFF94A3B8),
+                        color = titleColor,
                         fontWeight = FontWeight.Medium
                     )
 
                     // Interactive Month Chip (clickable with tactile feedback & downward chevron)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFF1E293B),
-                        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.8f)),
+                        color = monthChipBg,
+                        border = BorderStroke(1.dp, monthChipBorder),
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .then(
@@ -144,21 +175,21 @@ fun DashboardBalanceCard(
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = Color(0xFF2DD4BF),
+                                tint = monthChipIconTint,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = Formatters.formatMonthYear(currentMonthYear, isBangla),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFE2E8F0),
+                                color = monthChipTextColor,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = if (isBangla) "মাস নির্বাচন করুন" else "Select Month",
-                                tint = Color(0xFF94A3B8),
+                                tint = monthChipChevronTint,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -178,7 +209,7 @@ fun DashboardBalanceCard(
                         currencySymbol = currencySymbol,
                         useBanglaDigits = useBanglaDigits,
                         hideBalances = hideBalances,
-                        color = Color(0xFFFFFFFF),
+                        color = heroAmountColor,
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontSize = 32.sp,
                             letterSpacing = (-0.5).sp
@@ -189,26 +220,33 @@ fun DashboardBalanceCard(
                             .testTag("hero_total_balance_text")
                     )
 
-                    // Difference Badge: Crisp green on dark-green, rose on dark-red, or slate for zero
+                    // Difference Badge: Crisp green on light-green/dark-green, rose on light-red/dark-red
                     val netSavings = monthIncome - monthExpense
                     val hasTransactions = monthIncome > 0 || monthExpense > 0
                     val isPositive = netSavings >= 0
 
+                    val diffBg = when {
+                        !hasTransactions -> if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
+                        isPositive -> if (isDark) Color(0xFF14382A) else Color(0xFFDCFCE7)
+                        else -> if (isDark) Color(0xFF4C1D24) else Color(0xFFFEE2E2)
+                    }
+
+                    val diffBorder = when {
+                        !hasTransactions -> if (isDark) Color(0xFF334155).copy(alpha = 0.60f) else Color(0xFFE2E8F0)
+                        isPositive -> if (isDark) Color(0xFF059669).copy(alpha = 0.40f) else Color(0xFF86EFAC).copy(alpha = 0.8f)
+                        else -> if (isDark) Color(0xFFDC2626).copy(alpha = 0.40f) else Color(0xFFFCA5A5).copy(alpha = 0.8f)
+                    }
+
+                    val diffTextColor = when {
+                        !hasTransactions -> if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                        isPositive -> if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
+                        else -> if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = when {
-                            !hasTransactions -> Color(0xFF1E293B)
-                            isPositive -> Color(0xFF14382A)
-                            else -> Color(0xFF4C1D24)
-                        },
-                        border = BorderStroke(
-                            1.dp,
-                            when {
-                                !hasTransactions -> Color(0xFF334155).copy(alpha = 0.60f)
-                                isPositive -> Color(0xFF059669).copy(alpha = 0.40f)
-                                else -> Color(0xFFDC2626).copy(alpha = 0.40f)
-                            }
-                        ),
+                        color = diffBg,
+                        border = BorderStroke(1.dp, diffBorder),
                         modifier = Modifier
                             .padding(bottom = 4.dp, start = 8.dp)
                             .testTag("hero_difference_pill")
@@ -222,7 +260,7 @@ fun DashboardBalanceCard(
                                     text = if (isPositive) "+ " else "- ",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171)
+                                    color = diffTextColor
                                 )
                             }
                             CurrencyAmountText(
@@ -230,11 +268,7 @@ fun DashboardBalanceCard(
                                 currencySymbol = currencySymbol,
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
-                                color = when {
-                                    !hasTransactions -> Color(0xFF94A3B8)
-                                    isPositive -> Color(0xFF4ADE80)
-                                    else -> Color(0xFFF87171)
-                                },
+                                color = diffTextColor,
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
                                 fontWeight = FontWeight.Bold
                             )
@@ -244,12 +278,11 @@ fun DashboardBalanceCard(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Dedicated Dark Surface Tiles for Income & Expense Sub-Cards
+                // Income & Expense Sub-Cards
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val isVeryNarrow = maxWidth < 310.dp
 
                     if (isVeryNarrow) {
-                        // Vertical stacking for extreme narrow screens
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -260,6 +293,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isDark = isDark,
                                 isCurrentMonth = isCurrentMonth,
                                 onClick = onIncomeClick,
                                 modifier = Modifier.fillMaxWidth()
@@ -270,13 +304,13 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isDark = isDark,
                                 isCurrentMonth = isCurrentMonth,
                                 onClick = onExpenseClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
                     } else {
-                        // Side-by-side with clear visual indicators
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -287,6 +321,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isDark = isDark,
                                 isCurrentMonth = isCurrentMonth,
                                 onClick = onIncomeClick,
                                 modifier = Modifier.weight(1f)
@@ -297,6 +332,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isDark = isDark,
                                 isCurrentMonth = isCurrentMonth,
                                 onClick = onExpenseClick,
                                 modifier = Modifier.weight(1f)
@@ -316,25 +352,32 @@ private fun IncomeSubCard(
     useBanglaDigits: Boolean,
     hideBalances: Boolean,
     isBangla: Boolean,
+    isDark: Boolean,
     isCurrentMonth: Boolean = true,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
+    val subCardBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val subCardBorder = if (isDark) Color(0xFF334155).copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
+    val iconContainerBg = if (isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)
+    val iconTint = if (isDark) Color(0xFF34D399) else Color(0xFF16A34A)
+    val labelColor = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val amountColor = if (isDark) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.onSurface
+
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .testTag("hero_income_subcard"),
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF1E293B),
-        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.6f))
+        color = subCardBg,
+        border = BorderStroke(1.dp, subCardBorder)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 11.dp)
         ) {
-            // Header: Subtle Green Icon Container + Muted Slate Label
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -343,13 +386,13 @@ private fun IncomeSubCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF064E3B)),
+                        .background(iconContainerBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = Color(0xFF34D399),
+                        tint = iconTint,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -362,7 +405,7 @@ private fun IncomeSubCard(
                 Text(
                     text = incomeLabel,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = Color(0xFF94A3B8),
+                    color = labelColor,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     softWrap = false,
@@ -372,13 +415,12 @@ private fun IncomeSubCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount: High contrast crisp white value
             CurrencyAmountText(
                 amount = amount,
                 currencySymbol = currencySymbol,
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
-                color = Color(0xFFFFFFFF),
+                color = amountColor,
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -396,25 +438,32 @@ private fun ExpenseSubCard(
     useBanglaDigits: Boolean,
     hideBalances: Boolean,
     isBangla: Boolean,
+    isDark: Boolean,
     isCurrentMonth: Boolean = true,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
+    val subCardBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val subCardBorder = if (isDark) Color(0xFF334155).copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
+    val iconContainerBg = if (isDark) Color(0xFF4C1D24) else Color(0xFFFEE2E2)
+    val iconTint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+    val labelColor = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant
+    val amountColor = if (isDark) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.onSurface
+
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .testTag("hero_expense_subcard"),
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF1E293B),
-        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.6f))
+        color = subCardBg,
+        border = BorderStroke(1.dp, subCardBorder)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 11.dp)
         ) {
-            // Header: Subtle Red/Rose Icon Container + Muted Slate Label
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -423,13 +472,13 @@ private fun ExpenseSubCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF4C1D24)),
+                        .background(iconContainerBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = null,
-                        tint = Color(0xFFF87171),
+                        tint = iconTint,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -442,7 +491,7 @@ private fun ExpenseSubCard(
                 Text(
                     text = expenseLabel,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = Color(0xFF94A3B8),
+                    color = labelColor,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     softWrap = false,
@@ -452,13 +501,12 @@ private fun ExpenseSubCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount: High contrast crisp white value
             CurrencyAmountText(
                 amount = amount,
                 currencySymbol = currencySymbol,
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
-                color = Color(0xFFFFFFFF),
+                color = amountColor,
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

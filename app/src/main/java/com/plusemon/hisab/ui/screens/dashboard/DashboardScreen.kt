@@ -234,6 +234,12 @@ fun DashboardScreen(
 
         // Informative pill banner when viewing past/future month
         if (!selectedMonth.isCurrent()) {
+            val isDarkTheme = settings.isDarkMode
+            val bannerBg = if (isDarkTheme) Color(0xFF0F766E).copy(alpha = 0.15f) else Color(0xFFF0FDFA)
+            val bannerBorder = if (isDarkTheme) Color(0xFF2DD4BF).copy(alpha = 0.35f) else Color(0xFF99F6E4)
+            val bannerTint = if (isDarkTheme) Color(0xFF2DD4BF) else Color(0xFF0F766E)
+            val bannerAction = if (isDarkTheme) Color(0xFF5EEAD4) else Color(0xFF0D9488)
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -241,8 +247,8 @@ fun DashboardScreen(
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { viewModel.selectCurrentMonth() }
                     .testTag("reset_month_filter_banner"),
-                color = Color(0xFF0F766E).copy(alpha = 0.15f),
-                border = BorderStroke(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.35f)),
+                color = bannerBg,
+                border = BorderStroke(1.dp, bannerBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -256,7 +262,7 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
                             contentDescription = null,
-                            tint = Color(0xFF2DD4BF),
+                            tint = bannerTint,
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -264,14 +270,14 @@ fun DashboardScreen(
                             text = if (isBn) "${Formatters.formatMonthYear(selectedMonth.toMonthYearString(), true)} এর হিসাব"
                                    else "Filtered: ${Formatters.formatMonthYear(selectedMonth.toMonthYearString(), false)}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF2DD4BF),
+                            color = bannerTint,
                             fontWeight = FontWeight.Medium
                         )
                     }
                     Text(
                         text = Localization.getString(Localization.Key.RESET_TO_THIS_MONTH, isBn),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF5EEAD4),
+                        color = bannerAction,
                         fontWeight = FontWeight.Bold
                     )
                 }
