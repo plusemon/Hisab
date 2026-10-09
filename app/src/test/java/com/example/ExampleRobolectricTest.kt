@@ -252,4 +252,19 @@ class ExampleRobolectricTest {
     assertEquals("অন্যান্য", moreBn)
     assertEquals("More", moreEn)
   }
+
+  @Test
+  fun `transaction types and tab strings for expense income transfer`() {
+    val types = com.plusemon.hisab.data.model.TransactionType.values()
+    assertTrue(types.contains(com.plusemon.hisab.data.model.TransactionType.EXPENSE))
+    assertTrue(types.contains(com.plusemon.hisab.data.model.TransactionType.INCOME))
+    assertTrue(types.contains(com.plusemon.hisab.data.model.TransactionType.TRANSFER))
+
+    val expBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.EXPENSE_SHORT, isBangla = true)
+    val incBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.INCOME_SHORT, isBangla = true)
+    val trfBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.TRANSFER_SHORT, isBangla = true)
+    assertTrue(expBn.isNotBlank())
+    assertTrue(incBn.isNotBlank())
+    assertTrue(trfBn.isNotBlank())
+  }
 }

@@ -2,45 +2,12 @@ package com.plusemon.hisab.domain.util
 
 import com.plusemon.hisab.data.model.TransactionRecord
 import com.plusemon.hisab.data.model.TransactionType
-import com.plusemon.hisab.data.model.TransactionWithDetails
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 object CsvExporterImporter {
 
     private val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-
-    fun exportToCsv(transactions: List<TransactionWithDetails>): String {
-        val sb = StringBuilder()
-        // Header
-        sb.append("ID,Date,Type,Amount,Currency,Account,ToAccount,Category,Fee,Note\n")
-
-        for (item in transactions) {
-            val t = item.transaction
-            val dateStr = sdf.format(Date(t.dateTimestamp))
-            val typeStr = t.type.name
-            val amountStr = String.format(Locale.US, "%.2f", t.amount)
-            val currencyStr = item.account.currencyCode
-            val accName = escapeCsv(item.account.name)
-            val toAccName = escapeCsv(item.toAccount?.name ?: "")
-            val catName = escapeCsv(item.category?.nameEn ?: "")
-            val feeStr = String.format(Locale.US, "%.2f", t.fee)
-            val noteStr = escapeCsv(t.note)
-
-            sb.append("${t.id},$dateStr,$typeStr,$amountStr,$currencyStr,$accName,$toAccName,$catName,$feeStr,$noteStr\n")
-        }
-
-        return sb.toString()
-    }
-
-    private fun escapeCsv(value: String): String {
-        var res = value.replace("\"", "\"\"")
-        if (res.contains(",") || res.contains("\n") || res.contains("\"")) {
-            res = "\"$res\""
-        }
-        return res
-    }
 
     fun parseCsv(
         csvText: String,

@@ -7,8 +7,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -16,8 +19,16 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -31,8 +42,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.plusemon.hisab.data.model.TransactionType
 import com.plusemon.hisab.data.model.TransactionWithDetails
+import com.plusemon.hisab.ui.components.AddTransactionBottomSheet
 import com.plusemon.hisab.ui.components.DashboardHeader
 import com.plusemon.hisab.ui.components.HisabBottomNav
 import com.plusemon.hisab.ui.components.PinLockScreen
@@ -52,6 +70,7 @@ import com.plusemon.hisab.ui.screens.transactions.AddEditTransactionScreen
 import com.plusemon.hisab.ui.screens.transactions.TransactionsScreen
 import com.plusemon.hisab.ui.theme.HisabTheme
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -144,13 +163,57 @@ fun HisabMainApp(
     var initialTransactionType by remember { mutableStateOf(TransactionType.EXPENSE) }
     var isDebtDetailActive by remember { mutableStateOf(false) }
 
+    var showAddTransactionSheet by remember { mutableStateOf(false) }
+    var initialSheetTransactionType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    var isFabVisible by remember { mutableStateOf(true) }
+    var lastScrollTime by remember { mutableStateOf(0L) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // When scrolling up (finger moves up to browse downward), hide the button
+                if (available.y < -8f) {
+                    if (isFabVisible) {
+                        isFabVisible = false
+                        lastScrollTime = System.currentTimeMillis()
+                    }
+                } else if (available.y > 8f) {
+                    // When scrolling down (finger moves down to return towards top), show the button
+                    if (!isFabVisible) {
+                        isFabVisible = true
+                        lastScrollTime = 0L
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    // Auto-reveal after scroll pause so the button is readily accessible
+    LaunchedEffect(lastScrollTime) {
+        if (!isFabVisible && lastScrollTime > 0L) {
+            delay(2500)
+            isFabVisible = true
+        }
+    }
+
     val isSubscreen = currentSubscreen != null
     val currentRoute = if (isSubscreen) currentSubscreen!! else mainRoutes[pagerState.currentPage]
 
-    // Reset detail active state when switching main tabs
+    // Reset detail active state when switching main tabs & keep FAB visible
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage != 3) {
             isDebtDetailActive = false
+        }
+        isFabVisible = true
+        lastScrollTime = 0L
+    }
+
+    // Keep FAB visible when returning from subscreen
+    LaunchedEffect(currentSubscreen) {
+        if (currentSubscreen == null) {
+            isFabVisible = true
+            lastScrollTime = 0L
         }
     }
 
@@ -214,6 +277,34 @@ fun HisabMainApp(
                 )
             }
         },
+        floatingActionButton = {
+            if (!isSubscreen) {
+                AnimatedVisibility(
+                    visible = isFabVisible,
+                    enter = slideInVertically(initialOffsetY = { it * 2 }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it * 2 }) + fadeOut()
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            initialSheetTransactionType = TransactionType.EXPENSE
+                            showAddTransactionSheet = true
+                        },
+                        modifier = Modifier.testTag("global_floating_add_btn"),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = if (isBn) "নতুন লেনদেন" else "Add Transaction",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
@@ -221,6 +312,7 @@ fun HisabMainApp(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
+                .nestedScroll(nestedScrollConnection)
         ) {
             if (currentSubscreen != null) {
                 AnimatedContent(
@@ -289,9 +381,8 @@ fun HisabMainApp(
                             DashboardScreen(
                                 viewModel = viewModel,
                                 onNavigateToAddTransaction = { type ->
-                                    initialTransactionType = type
-                                    selectedTransactionForEdit = null
-                                    currentSubscreen = Screen.AddEditTransaction.route
+                                    initialSheetTransactionType = type
+                                    showAddTransactionSheet = true
                                 },
                                 onNavigateToTransactions = {
                                     coroutineScope.launch { pagerState.animateScrollToPage(1) }
@@ -315,9 +406,8 @@ fun HisabMainApp(
                             TransactionsScreen(
                                 viewModel = viewModel,
                                 onNavigateToAddTransaction = {
-                                    selectedTransactionForEdit = null
-                                    initialTransactionType = TransactionType.EXPENSE
-                                    currentSubscreen = Screen.AddEditTransaction.route
+                                    initialSheetTransactionType = TransactionType.EXPENSE
+                                    showAddTransactionSheet = true
                                 },
                                 onTransactionClick = { txItem ->
                                     selectedTransactionForEdit = txItem
@@ -357,5 +447,13 @@ fun HisabMainApp(
                 }
             }
         }
+    }
+
+    if (showAddTransactionSheet) {
+        AddTransactionBottomSheet(
+            viewModel = viewModel,
+            initialType = initialSheetTransactionType,
+            onDismiss = { showAddTransactionSheet = false }
+        )
     }
 }

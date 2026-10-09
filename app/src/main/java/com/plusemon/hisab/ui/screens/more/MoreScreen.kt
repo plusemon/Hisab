@@ -1,6 +1,5 @@
 package com.plusemon.hisab.ui.screens.more
 
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,14 +25,8 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -41,22 +34,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,17 +64,12 @@ fun MoreScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val isBn = settings.language == "bn"
     val currentUser by viewModel.currentUser.collectAsState()
     val syncStatus by viewModel.appSyncStatus.collectAsState()
     val accounts by viewModel.accountsWithBalances.collectAsState()
     val categories by viewModel.categories.collectAsState()
-
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showStatementPreviewDialog by remember { mutableStateOf(false) }
-    var previewText by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -220,21 +202,6 @@ fun MoreScreen(
                     onClick = onNavigateToReports,
                     testTag = "more_reports_tile"
                 )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-
-                MoreTileItem(
-                    icon = Icons.Default.FileDownload,
-                    iconBgColor = Color(0xFF10B981).copy(alpha = 0.14f),
-                    iconTint = Color(0xFF047857),
-                    title = if (isBn) "তথ্য এক্সপোর্ট (PDF / Excel)" else "Export Data (PDF / Excel)",
-                    subtitle = if (isBn) "এক্সেলে সিএসভি বা আর্থিক বিবরণী শেয়ার ও সংরক্ষণ" else "Export transactions to Excel (CSV) or Financial Summary",
-                    onClick = { showExportDialog = true },
-                    testTag = "more_export_tile"
-                )
             }
         }
 
@@ -360,243 +327,6 @@ fun MoreScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
-    }
-
-    // Export Data Dialog
-    if (showExportDialog) {
-        AlertDialog(
-            onDismissRequest = { showExportDialog = false },
-            title = {
-                Text(
-                    text = if (isBn) "তথ্য এক্সপোর্ট ও শেয়ার" else "Export Data",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = if (isBn)
-                            "আপনার সমস্ত লেনদেন বা মাসিক আর্থিক বিবরণী এক্সপোর্ট করে সংরক্ষণ করতে চান?"
-                        else
-                            "Choose an export format to share or backup your records:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Option 1: Excel / CSV
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val csv = viewModel.exportTransactionsCsv()
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, csv)
-                                    putExtra(
-                                        Intent.EXTRA_SUBJECT,
-                                        "Hisab_Transactions_${System.currentTimeMillis()}.csv"
-                                    )
-                                    type = "text/csv"
-                                }
-                                val chooser = Intent.createChooser(
-                                    sendIntent,
-                                    if (isBn) "সিএসভি ফাইল শেয়ার বা সেভ করুন" else "Export CSV Spreadsheet"
-                                )
-                                context.startActivity(chooser)
-                                showExportDialog = false
-                            }
-                            .testTag("more_export_csv_btn"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF10B981).copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TableChart,
-                                    contentDescription = null,
-                                    tint = Color(0xFF047857),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isBn) "এক্সেল / স্প্রেডশিট (.csv)" else "Excel / Spreadsheet (.csv)",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isBn) "সমস্ত লেনদেন এক্সেল ও গুগল শিটসে খুলুন" else "All transactions compatible with Excel & Google Sheets",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Option 2: Statement Summary (PDF / Text)
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val summary = viewModel.generateFinancialSummary()
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, summary)
-                                    putExtra(
-                                        Intent.EXTRA_SUBJECT,
-                                        "Hisab_Monthly_Financial_Statement.txt"
-                                    )
-                                    type = "text/plain"
-                                }
-                                val chooser = Intent.createChooser(
-                                    sendIntent,
-                                    if (isBn) "আর্থিক বিবরণী শেয়ার করুন" else "Share Financial Statement"
-                                )
-                                context.startActivity(chooser)
-                                showExportDialog = false
-                            }
-                            .testTag("more_export_summary_btn"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF3B82F6).copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Description,
-                                    contentDescription = null,
-                                    tint = Color(0xFF1D4ED8),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isBn) "মাসিক আর্থিক বিবরণী (Statement)" else "Financial Statement (Summary)",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isBn) "মোট ব্যালেন্স, আয়-ব্যয় ও অ্যাকাউন্টের সারসংক্ষেপ" else "Formatted summary of balance, income, expenses & accounts",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Option 3: In-App Preview
-                    OutlinedButton(
-                        onClick = {
-                            previewText = viewModel.generateFinancialSummary()
-                            showStatementPreviewDialog = true
-                            showExportDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (isBn) "অ্যাপের ভেতরে বিবরণী দেখুন" else "Preview Statement in App")
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showExportDialog = false }) {
-                    Text(if (isBn) "বাতিল" else "Close")
-                }
-            }
-        )
-    }
-
-    // Statement In-App Preview Dialog
-    if (showStatementPreviewDialog) {
-        AlertDialog(
-            onDismissRequest = { showStatementPreviewDialog = false },
-            title = {
-                Text(
-                    text = if (isBn) "মাসিক বিবরণী প্রিভিউ" else "Statement Preview",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = previewText,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val sendIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, previewText)
-                            putExtra(Intent.EXTRA_SUBJECT, "Hisab_Monthly_Financial_Statement.txt")
-                            type = "text/plain"
-                        }
-                        val chooser = Intent.createChooser(
-                            sendIntent,
-                            if (isBn) "বিবরণী শেয়ার করুন" else "Share Statement"
-                        )
-                        context.startActivity(chooser)
-                        showStatementPreviewDialog = false
-                    }
-                ) {
-                    Text(if (isBn) "শেয়ার করুন" else "Share")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStatementPreviewDialog = false }) {
-                    Text(if (isBn) "বন্ধ করুন" else "Close")
-                }
-            }
-        )
     }
 }
 

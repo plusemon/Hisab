@@ -86,7 +86,7 @@ import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 @Composable
 fun DashboardScreen(
     viewModel: HisabViewModel,
-    onNavigateToAddTransaction: (TransactionType) -> Unit,
+    onNavigateToAddTransaction: (TransactionType) -> Unit = {},
     onNavigateToTransactions: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     onNavigateToBudgets: () -> Unit,
@@ -279,113 +279,6 @@ fun DashboardScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = bannerAction,
                         fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer]
-        // Balanced tonal container styling with prominent icon & text colors
-        val isDarkTheme = settings.isDarkMode
-        val expenseContainer = if (isDarkTheme) ExpenseRed.copy(alpha = 0.16f) else Color(0xFFFEE2E2)
-        val expenseContent = if (isDarkTheme) Color(0xFFF87171) else Color(0xFFDC2626)
-        val incomeContainer = if (isDarkTheme) IncomeGreen.copy(alpha = 0.16f) else Color(0xFFDCFCE7)
-        val incomeContent = if (isDarkTheme) Color(0xFF4ADE80) else Color(0xFF16A34A)
-        val transferContainer = if (isDarkTheme) TransferBlue.copy(alpha = 0.16f) else Color(0xFFDBEAFE)
-        val transferContent = if (isDarkTheme) Color(0xFF60A5FA) else Color(0xFF2563EB)
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { onNavigateToAddTransaction(TransactionType.EXPENSE) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp)
-                    .testTag("fast_add_expense_btn"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = expenseContainer,
-                    contentColor = expenseContent
-                ),
-                border = BorderStroke(1.dp, expenseContent.copy(alpha = 0.22f)),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Button(
-                onClick = { onNavigateToAddTransaction(TransactionType.INCOME) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp)
-                    .testTag("fast_add_income_btn"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = incomeContainer,
-                    contentColor = incomeContent
-                ),
-                border = BorderStroke(1.dp, incomeContent.copy(alpha = 0.22f)),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = Localization.getString(Localization.Key.INCOME_SHORT, isBn),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Button(
-                onClick = { onNavigateToAddTransaction(TransactionType.TRANSFER) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp)
-                    .testTag("fast_transfer_btn"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = transferContainer,
-                    contentColor = transferContent
-                ),
-                border = BorderStroke(1.dp, transferContent.copy(alpha = 0.22f)),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

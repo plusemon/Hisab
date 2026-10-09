@@ -1572,54 +1572,8 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // -------------------------------------------------------------
-    // DATA EXPORT & IMPORT
+    // DATA IMPORT
     // -------------------------------------------------------------
-
-    fun exportTransactionsCsv(): String {
-        return CsvExporterImporter.exportToCsv(_transactions.value)
-    }
-
-    fun generateFinancialSummary(): String {
-        val isBn = _settings.value.language == "bn"
-        val currSymbol = _settings.value.currencySymbol
-        val useBnDigits = _settings.value.numeralSystem == "bn"
-
-        val report = computePeriodReport(
-            Formatters.getStartAndEndOfMonth(Formatters.getCurrentMonthYear()).first,
-            Formatters.getStartAndEndOfMonth(Formatters.getCurrentMonthYear()).second
-        )
-
-        val totalBalStr = Formatters.formatAmount(_totalBalance.value, currSymbol, useBnDigits)
-        val incomeStr = Formatters.formatAmount(report.totalIncome, currSymbol, useBnDigits)
-        val expenseStr = Formatters.formatAmount(report.totalExpense, currSymbol, useBnDigits)
-        val savingsStr = Formatters.formatAmount(report.netSavings, currSymbol, useBnDigits)
-
-        return if (isBn) {
-            """
-            📊 হিসাব (Hisab) - মাসিক আর্থিক বিবরণী (${Formatters.formatMonthYear(Formatters.getCurrentMonthYear(), true)})
-            ─────────────────────────────
-            💰 মোট ব্যালেন্স: $totalBalStr
-            📈 মোট আয়: $incomeStr
-            📉 মোট খরচ: $expenseStr
-            🌱 নিট সঞ্চয়: $savingsStr
-            ─────────────────────────────
-            অ্যাকাউন্টসমূহ:
-            ${_accountsWithBalances.value.joinToString("\n") { "• ${it.account.name}: ${Formatters.formatAmount(it.balance, currSymbol, useBnDigits)}" }}
-            """.trimIndent()
-        } else {
-            """
-            📊 Hisab Financial Summary (${Formatters.formatMonthYear(Formatters.getCurrentMonthYear(), false)})
-            ─────────────────────────────
-            💰 Total Balance: $totalBalStr
-            📈 Total Income: $incomeStr
-            📉 Total Expense: $expenseStr
-            🌱 Net Savings: $savingsStr
-            ─────────────────────────────
-            Accounts:
-            ${_accountsWithBalances.value.joinToString("\n") { "• ${it.account.name}: ${Formatters.formatAmount(it.balance, currSymbol, useBnDigits)}" }}
-            """.trimIndent()
-        }
-    }
 
     fun importTransactionsFromCsv(csvContent: String) {
         val user = currentUser.value ?: return
