@@ -1,5 +1,6 @@
 package com.plusemon.hisab.ui.screens.accounts
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
@@ -70,14 +72,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.data.model.AccountType
+import com.plusemon.hisab.data.model.TransactionWithDetails
 import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
+import com.plusemon.hisab.ui.screens.dashboard.TransactionRowItem
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.AccountWithBalance
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
@@ -98,11 +103,17 @@ fun AccountsScreen(
     val accountsWithBalances by viewModel.accountsWithBalances.collectAsState()
     val archivedAccountsWithBalances by viewModel.archivedAccountsWithBalances.collectAsState()
     val totalBalance by viewModel.totalBalance.collectAsState()
+    val allTransactions by viewModel.transactions.collectAsState()
 
     var editingAccount by remember { mutableStateOf<UserAccount?>(null) }
     var isAddingAccount by remember { mutableStateOf(false) }
     var isArchivedExpanded by remember { mutableStateOf(false) }
     var accountToDelete by remember { mutableStateOf<UserAccount?>(null) }
+    var selectedAccountForDetail by remember { mutableStateOf<AccountWithBalance?>(null) }
+
+    BackHandler(enabled = selectedAccountForDetail != null) {
+        selectedAccountForDetail = null
+    }
 
     if (isAddingAccount || editingAccount != null) {
         AddEditAccountDialog(
@@ -145,6 +156,9 @@ fun AccountsScreen(
             onConfirm = {
                 viewModel.deleteAccount(target.id)
                 accountToDelete = null
+                if (selectedAccountForDetail?.account?.id == target.id) {
+                    selectedAccountForDetail = null
+                }
             },
             onDismiss = {
                 accountToDelete = null
@@ -154,31 +168,90 @@ fun AccountsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = Localization.getString(Localization.Key.MY_ACCOUNTS, isBn),
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            if (selectedAccountForDetail != null) {
+                val currentAcc = selectedAccountForDetail!!.account
+                DetailTopAppBar(
+                    title = currentAcc.name,
+                    onNavigateBack = { selectedAccountForDetail = null },
+                    actions = {
+                        IconButton(
+                            onClick = { editingAccount = currentAcc },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("topbar_edit_account_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = if (isBn) "সম্পাদন করুন" else "Edit",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { accountToDelete = currentAcc },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("topbar_delete_account_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = if (isBn) "মুছুন" else "Delete",
+                                tint = ExpenseRed,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-                }
-            )
+                )
+            } else {
+                DetailTopAppBar(
+                    title = Localization.getString(Localization.Key.MY_ACCOUNTS, isBn),
+                    onNavigateBack = onNavigateBack,
+                    actions = {
+                        IconButton(
+                            onClick = { isAddingAccount = true },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("topbar_add_account_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = Localization.getString(Localization.Key.ADD_ACCOUNT, isBn),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { isAddingAccount = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("add_account_fab")
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Account")
+            if (selectedAccountForDetail == null) {
+                FloatingActionButton(
+                    onClick = { isAddingAccount = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.testTag("add_account_fab")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Account")
+                }
             }
         }
     ) { padding ->
+        if (selectedAccountForDetail != null) {
+            val currentAcc = selectedAccountForDetail!!.account
+            val latestItem = accountsWithBalances.find { it.account.id == currentAcc.id }
+                ?: archivedAccountsWithBalances.find { it.account.id == currentAcc.id }
+                ?: selectedAccountForDetail!!
+            AccountDetailContent(
+                item = latestItem,
+                transactions = allTransactions.filter {
+                    it.transaction.accountId == currentAcc.id || it.transaction.toAccountId == currentAcc.id
+                },
+                isBangla = isBn,
+                useBnDigits = useBnDigits,
+                hideBalances = hideBalances,
+                currencySymbol = currSymbol,
+                modifier = modifier.padding(padding)
+            )
+        } else {
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -264,6 +337,7 @@ fun AccountsScreen(
                             useBnDigits = useBnDigits,
                             hideBalances = hideBalances,
                             currencySymbol = currSymbol,
+                            onAccountClick = { selectedAccountForDetail = item },
                             onEdit = { editingAccount = item.account },
                             onArchive = {
                                 isArchivedExpanded = true
@@ -364,6 +438,7 @@ fun AccountsScreen(
                                 useBnDigits = useBnDigits,
                                 hideBalances = hideBalances,
                                 currencySymbol = currSymbol,
+                                onAccountClick = { selectedAccountForDetail = item },
                                 onEdit = { editingAccount = item.account },
                                 onUnarchive = { viewModel.archiveAccount(item.account.id, false) },
                                 onDelete = { accountToDelete = item.account }
@@ -375,6 +450,7 @@ fun AccountsScreen(
         }
     }
 }
+}
 
 @Composable
 fun AccountDetailedItem(
@@ -383,6 +459,7 @@ fun AccountDetailedItem(
     useBnDigits: Boolean,
     hideBalances: Boolean,
     currencySymbol: String,
+    onAccountClick: () -> Unit = {},
     onEdit: () -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit
@@ -393,6 +470,8 @@ fun AccountDetailedItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onAccountClick() }
             .testTag("account_item_${acc.id}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -496,6 +575,7 @@ fun ArchivedAccountDetailedItem(
     useBnDigits: Boolean,
     hideBalances: Boolean,
     currencySymbol: String,
+    onAccountClick: () -> Unit = {},
     onEdit: () -> Unit,
     onUnarchive: () -> Unit,
     onDelete: () -> Unit
@@ -506,6 +586,8 @@ fun ArchivedAccountDetailedItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onAccountClick() }
             .testTag("archived_account_item_${acc.id}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -611,6 +693,153 @@ fun ArchivedAccountDetailedItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Account Detail Content showing account details and associated transactions.
+ * Designed with clean visual hierarchy, without redundant duplicate titles inside body cards.
+ */
+@Composable
+fun AccountDetailContent(
+    item: AccountWithBalance,
+    transactions: List<TransactionWithDetails>,
+    isBangla: Boolean,
+    useBnDigits: Boolean,
+    hideBalances: Boolean,
+    currencySymbol: String,
+    modifier: Modifier = Modifier
+) {
+    val acc = item.account
+    val accColor = parseColorHex(acc.colorHex)
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Account Overview Card (NO redundant duplicate title inside card)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(accColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getIconByName(acc.iconName),
+                                contentDescription = null,
+                                tint = accColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = if (isBangla) acc.type.labelBn else acc.type.labelEn,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = if (isBangla) "বর্তমান ব্যালেন্স" else "Current Balance",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    CurrencyAmountText(
+                        amount = item.balance,
+                        currencySymbol = currencySymbol,
+                        useBanglaDigits = useBnDigits,
+                        hideBalances = hideBalances,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (item.balance < 0) ExpenseRed else MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (isBangla) "শুরুর ব্যালেন্স: ${Formatters.formatAmount(acc.startingBalance, currencySymbol, useBnDigits)}" else "Starting Balance: ${Formatters.formatAmount(acc.startingBalance, currencySymbol, useBnDigits)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "(${acc.currencyCode})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Transactions Header
+        item {
+            Text(
+                text = if (isBangla) "অ্যাকাউন্টের সাম্প্রতিক লেনদেন" else "Recent Transactions",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        if (transactions.isEmpty()) {
+            item {
+                EmptyStateView(
+                    icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                    title = if (isBangla) "কোনো লেনদেন নেই" else "No Transactions",
+                    description = if (isBangla) "এই অ্যাকাউন্টে এখনও কোনো লেনদেন রেকর্ড করা হয়নি" else "No transactions recorded for this account yet"
+                )
+            }
+        } else {
+            items(transactions, key = { it.transaction.id }) { tx ->
+                TransactionRowItem(
+                    item = tx,
+                    isBangla = isBangla,
+                    useBnDigits = useBnDigits,
+                    hideBalances = hideBalances,
+                    currencySymbol = currencySymbol,
+                    onClick = {}
+                )
             }
         }
     }

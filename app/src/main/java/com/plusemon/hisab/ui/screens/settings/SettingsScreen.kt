@@ -69,6 +69,7 @@ import androidx.compose.ui.window.Dialog
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.domain.util.VersionUtils
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.UserAvatar
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
@@ -142,18 +143,9 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = Localization.getString(Localization.Key.SETTINGS, isBn),
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            DetailTopAppBar(
+                title = Localization.getString(Localization.Key.SETTINGS, isBn),
+                onNavigateBack = onNavigateBack
             )
         }
     ) { padding ->

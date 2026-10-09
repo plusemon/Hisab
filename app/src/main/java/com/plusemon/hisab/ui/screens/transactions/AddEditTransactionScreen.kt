@@ -80,6 +80,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.ExpenseRed
@@ -223,34 +224,34 @@ fun AddEditTransactionScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (existingTransaction == null) {
-                            when (transactionType) {
-                                TransactionType.EXPENSE -> Localization.getString(Localization.Key.ADD_EXPENSE, isBn)
-                                TransactionType.INCOME -> Localization.getString(Localization.Key.ADD_INCOME, isBn)
-                                TransactionType.TRANSFER -> Localization.getString(Localization.Key.TRANSFER, isBn)
-                            }
-                        } else {
-                            if (isBn) "লেনদেন সম্পাদন" else "Edit Transaction"
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            val titleText = if (existingTransaction == null) {
+                when (transactionType) {
+                    TransactionType.EXPENSE -> Localization.getString(Localization.Key.ADD_EXPENSE, isBn)
+                    TransactionType.INCOME -> Localization.getString(Localization.Key.ADD_INCOME, isBn)
+                    TransactionType.TRANSFER -> Localization.getString(Localization.Key.TRANSFER, isBn)
+                }
+            } else {
+                if (isBn) "লেনদেন সম্পাদন" else "Edit Transaction"
+            }
+            DetailTopAppBar(
+                title = titleText,
+                onNavigateBack = onNavigateBack,
                 actions = {
                     if (existingTransaction != null) {
                         IconButton(
                             onClick = {
                                 showDeleteConfirmation = true
-                            }
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("delete_transaction_btn")
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = ExpenseRed)
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = if (isBn) "মুছুন" else "Delete",
+                                tint = ExpenseRed,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }

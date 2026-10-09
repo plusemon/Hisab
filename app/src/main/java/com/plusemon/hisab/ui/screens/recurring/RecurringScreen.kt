@@ -63,6 +63,7 @@ import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
@@ -138,16 +139,21 @@ fun RecurringScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = Localization.getString(Localization.Key.RECURRING_TRANSACTIONS, isBn),
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            DetailTopAppBar(
+                title = Localization.getString(Localization.Key.RECURRING_TRANSACTIONS, isBn),
+                onNavigateBack = onNavigateBack,
+                actions = {
+                    IconButton(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("topbar_add_recurring_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = if (isBn) "নতুন পুনরাবৃত্তি যোগ করুন" else "Add Recurring",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             )

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -112,6 +113,7 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
+import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.EmptyStateView
 import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
@@ -122,6 +124,7 @@ import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 fun DebtsScreen(
     viewModel: HisabViewModel,
     onNavigateBack: () -> Unit,
+    onDetailStateChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings by viewModel.settings.collectAsState()
@@ -129,6 +132,7 @@ fun DebtsScreen(
     val useBnDigits = settings.numeralSystem == "bn"
     val hideBalances = settings.hideBalances
     val currSymbol = settings.currencySymbol
+    val context = LocalContext.current
 
     val debtPagerState = rememberPagerState(initialPage = 0) { 2 }
     val coroutineScope = rememberCoroutineScope()
@@ -143,6 +147,10 @@ fun DebtsScreen(
     var selectedContactId by remember { mutableStateOf<Long?>(null) }
     var selectedVendorId by remember { mutableStateOf<Long?>(null) }
 
+    androidx.compose.runtime.LaunchedEffect(selectedContactId, selectedVendorId) {
+        onDetailStateChanged(selectedContactId != null || selectedVendorId != null)
+    }
+
     var showAddLoanDialog by remember { mutableStateOf(false) }
     var recordingPaymentDebt by remember { mutableStateOf<LoanDebt?>(null) }
 
@@ -150,6 +158,19 @@ fun DebtsScreen(
     var showAddVendorDialog by remember { mutableStateOf(false) }
     var settlingVendor by remember { mutableStateOf<Vendor?>(null) }
     var debtToDelete by remember { mutableStateOf<LoanDebt?>(null) }
+    var editingContactPhone by remember { mutableStateOf<Contact?>(null) }
+
+    if (editingContactPhone != null) {
+        EditContactPhoneDialog(
+            contact = editingContactPhone!!,
+            isBangla = isBn,
+            onDismiss = { editingContactPhone = null },
+            onSave = { newPhone ->
+                viewModel.updateContact(editingContactPhone!!.copy(phone = newPhone))
+                editingContactPhone = null
+            }
+        )
+    }
 
     if (debtToDelete != null) {
         val target = debtToDelete!!
@@ -264,25 +285,87 @@ fun DebtsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            if (selectedContactId != null || selectedVendorId != null) {
-                TopAppBar(
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    title = {
-                        Text(
-                            text = when {
-                                selectedContactId != null && activeContact != null -> activeContact.name
-                                selectedVendorId != null && activeVendor != null -> activeVendor.name
-                                else -> ""
-                            },
-                            fontWeight = FontWeight.Bold
-                        )
+            if (selectedContactId != null && activeContact != null) {
+                val phoneToCall = activeContact.phone.ifBlank {
+                    allDebts.firstOrNull {
+                        (it.contactId == activeContact.id || it.personName.equals(activeContact.name, true)) && it.phone.isNotBlank()
+                    }?.phone ?: ""
+                }
+                DetailTopAppBar(
+                    title = activeContact.name,
+                    onNavigateBack = {
+                        selectedContactId = null
+                        selectedVendorId = null
                     },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            selectedContactId = null
-                            selectedVendorId = null
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    actions = {
+                        if (phoneToCall.isNotBlank()) {
+                            IconButton(
+                                onClick = { ContactUtils.dialPhoneNumber(context, phoneToCall, isBn) },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .testTag("topbar_call_contact_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = if (isBn) "কল করুন" else "Call",
+                                    tint = IncomeGreen,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { editingContactPhone = activeContact },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("edit_contact_phone_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = if (isBn) "নম্বর এডিট করুন" else "Edit Phone",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                )
+            } else if (selectedVendorId != null && activeVendor != null) {
+                DetailTopAppBar(
+                    title = activeVendor.name,
+                    onNavigateBack = {
+                        selectedContactId = null
+                        selectedVendorId = null
+                    },
+                    actions = {
+                        if (activeVendor.phone.isNotBlank()) {
+                            IconButton(
+                                onClick = { ContactUtils.dialPhoneNumber(context, activeVendor.phone, isBn) },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .testTag("call_vendor_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = if (isBn) "কল করুন" else "Call",
+                                    tint = IncomeGreen,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.archiveVendor(activeVendor.id, true)
+                                selectedVendorId = null
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("archive_vendor_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Archive,
+                                contentDescription = if (isBn) "আর্কাইভ করুন" else "Archive",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 )
@@ -850,11 +933,6 @@ fun ContactLedgerContent(
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = contact.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
                         if (phoneToCall.isNotBlank()) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -885,25 +963,11 @@ fun ContactLedgerContent(
                             )
                         }
                     }
-
-                    if (onUpdateContactPhone != null) {
-                        IconButton(
-                            onClick = { showEditPhoneDialog = true },
-                            modifier = Modifier.size(36.dp).testTag("edit_contact_phone_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = if (isBn) "নম্বর এডিট করুন" else "Edit Phone",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Action buttons on Details page: Call and Add Entry
+                // Action buttons on Details page: Balanced styling between Call/Add Phone and Add Entry
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -916,8 +980,10 @@ fun ContactLedgerContent(
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                             modifier = Modifier
                                 .weight(1f)
+                                .height(44.dp)
                                 .testTag("contact_details_call_btn")
                         ) {
                             Icon(
@@ -926,32 +992,64 @@ fun ContactLedgerContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isBn) "কল করুন" else "Call", fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (isBn) "কল করুন" else "Call",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     } else if (onUpdateContactPhone != null) {
                         OutlinedButton(
                             onClick = { showEditPhoneDialog = true },
                             shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                             modifier = Modifier
                                 .weight(1f)
+                                .height(44.dp)
                                 .testTag("contact_details_add_phone_btn")
                         ) {
-                            Icon(Icons.Default.ContactPhone, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(
+                                imageVector = Icons.Default.ContactPhone,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isBn) "নম্বর যুক্ত করুন" else "Add Phone", fontWeight = FontWeight.Medium)
+                            Text(
+                                text = if (isBn) "নম্বর যুক্ত করুন" else "Add Phone",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
 
                     Button(
                         onClick = onAddEntryClick,
                         shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .height(44.dp)
                             .testTag("contact_details_add_entry_btn")
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isBn) "নতুন এন্ট্রি" else "Add Entry", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (isBn) "+ এন্ট্রি যোগ করুন" else "+ Add Entry",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -980,8 +1078,9 @@ fun ContactLedgerContent(
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(debts, key = { it.id }) { debt ->
                     LoanDebtItemCard(
@@ -1030,16 +1129,20 @@ fun LoanDebtItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val badgeContainer = if (isOwedToMe) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)
+                val badgeText = if (isOwedToMe) Color(0xFF15803D) else Color(0xFFB91C1C)
+
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = badgeContainer,
+                    border = BorderStroke(1.dp, badgeText.copy(alpha = 0.25f))
                 ) {
                     Text(
                         text = if (isOwedToMe) (if (isBn) "দিলাম (পাওনা)" else "Gave Money") else (if (isBn) "নিলাম (দেনা)" else "Took Money"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = mainColor,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        color = badgeText,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
 
@@ -1048,19 +1151,27 @@ fun LoanDebtItemCard(
                 if (debt.isSettled) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = IncomeGreen.copy(alpha = 0.15f)
+                        color = Color(0xFFDCFCE7)
                     ) {
                         Text(
                             text = Localization.getString(Localization.Key.SETTLE, isBn),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = IncomeGreen,
+                            color = Color(0xFF15803D),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 } else {
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = if (isBn) "মুছুন" else "Delete",
+                            tint = ExpenseRed.copy(alpha = 0.90f),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -1120,7 +1231,7 @@ fun LoanDebtItemCard(
             }
 
             if (debt.note.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = debt.note,
                     style = MaterialTheme.typography.bodySmall,
@@ -1128,7 +1239,27 @@ fun LoanDebtItemCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isBn) "পরিশোধের অগ্রগতি" else "Repayment Progress",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = mainColor
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             LinearProgressIndicator(
                 progress = { progress },
@@ -1144,13 +1275,27 @@ fun LoanDebtItemCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = onRecordPayment,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = mainColor)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = mainColor,
+                        contentColor = Color.White
+                    )
                 ) {
-                    Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.Payment,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(Localization.getString(Localization.Key.RECORD_PAYMENT, isBn), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = Localization.getString(Localization.Key.RECORD_PAYMENT, isBn),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -1502,11 +1647,6 @@ fun VendorLedgerContent(
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = vendor.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
                         if (vendor.phone.isNotBlank()) {
                             val context = LocalContext.current
                             Row(
@@ -1530,25 +1670,19 @@ fun VendorLedgerContent(
                                     fontWeight = FontWeight.Medium
                                 )
                             }
-                        }
-                    }
-
-                    if (vendor.phone.isNotBlank()) {
-                        val context = LocalContext.current
-                        IconButton(
-                            onClick = { ContactUtils.dialPhoneNumber(context, vendor.phone, isBn) },
-                            modifier = Modifier.testTag("call_vendor_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Call,
-                                contentDescription = if (isBn) "কল করুন" else "Call",
-                                tint = IncomeGreen
+                        } else if (vendor.locationNote.isNotBlank()) {
+                            Text(
+                                text = vendor.locationNote,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = if (isBn) "দোকানের হিসাব" else "Vendor Ledger",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-
-                    IconButton(onClick = { onArchiveVendor(vendor.id, true) }) {
-                        Icon(Icons.Default.Archive, contentDescription = "Archive", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -1623,8 +1757,9 @@ fun VendorLedgerContent(
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(purchases, key = { it.id }) { purchase ->
                     Card(

@@ -33,8 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.plusemon.hisab.data.model.TransactionType
 import com.plusemon.hisab.data.model.TransactionWithDetails
+import com.plusemon.hisab.ui.components.DashboardHeader
 import com.plusemon.hisab.ui.components.HisabBottomNav
-import com.plusemon.hisab.ui.components.HisabTopBar
 import com.plusemon.hisab.ui.components.PinLockScreen
 import com.plusemon.hisab.ui.components.UpdateDialog
 import com.plusemon.hisab.ui.navigation.Screen
@@ -140,9 +140,17 @@ fun HisabMainApp(
     var currentSubscreen by remember { mutableStateOf<String?>(null) }
     var selectedTransactionForEdit by remember { mutableStateOf<TransactionWithDetails?>(null) }
     var initialTransactionType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    var isDebtDetailActive by remember { mutableStateOf(false) }
 
     val isSubscreen = currentSubscreen != null
     val currentRoute = if (isSubscreen) currentSubscreen!! else mainRoutes[pagerState.currentPage]
+
+    // Reset detail active state when switching main tabs
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage != 3) {
+            isDebtDetailActive = false
+        }
+    }
 
     // Handle Back Press on Subscreens
     BackHandler(enabled = isSubscreen) {
@@ -150,8 +158,8 @@ fun HisabMainApp(
         selectedTransactionForEdit = null
     }
 
-    // Handle Back Press on Main Tabs: Return to Dashboard if on another tab
-    BackHandler(enabled = !isSubscreen && pagerState.currentPage != 0) {
+    // Handle Back Press on Main Tabs: Return to Dashboard if on another tab and not in child detail
+    BackHandler(enabled = !isSubscreen && !isDebtDetailActive && pagerState.currentPage != 0) {
         coroutineScope.launch {
             pagerState.animateScrollToPage(0)
         }
@@ -177,8 +185,8 @@ fun HisabMainApp(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            if (!isSubscreen) {
-                HisabTopBar(
+            if (!isSubscreen && !isDebtDetailActive) {
+                DashboardHeader(
                     user = currentUser,
                     settings = settings,
                     syncStatus = syncStatus,
@@ -316,6 +324,9 @@ fun HisabMainApp(
                                 viewModel = viewModel,
                                 onNavigateBack = {
                                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                                },
+                                onDetailStateChanged = { isDetail ->
+                                    isDebtDetailActive = isDetail
                                 }
                             )
                         }
