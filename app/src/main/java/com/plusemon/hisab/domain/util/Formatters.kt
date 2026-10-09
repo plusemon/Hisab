@@ -28,9 +28,6 @@ object Formatters {
         useBanglaDigits: Boolean = false,
         hideBalances: Boolean = false
     ): String {
-        if (hideBalances) {
-            return "$currencySymbol ••••••"
-        }
         val decimalFormat = DecimalFormat("#,##0.##")
         val formattedNumber = decimalFormat.format(amount)
         val finalNumber = if (useBanglaDigits) toBanglaDigits(formattedNumber) else formattedNumber

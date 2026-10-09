@@ -264,7 +264,6 @@ fun HisabMainApp(
                     onToggleDarkMode = { viewModel.toggleDarkMode() },
                     onSetThemeMode = { useSystem, isDark -> viewModel.setThemeMode(useSystem, isDark) },
                     onToggleLanguage = { viewModel.toggleLanguage() },
-                    onTogglePrivacy = { viewModel.toggleHideBalances() },
                     onProfileClick = { currentSubscreen = Screen.Settings.route }
                 )
             }

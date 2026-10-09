@@ -18,7 +18,6 @@ fun HisabTopBar(
     onToggleDarkMode: () -> Unit = {},
     onSetThemeMode: (useSystem: Boolean, isDark: Boolean) -> Unit = { _, _ -> },
     onToggleLanguage: () -> Unit = {},
-    onTogglePrivacy: (() -> Unit)? = null,
     onProfileClick: () -> Unit = {},
     onSettingsClick: () -> Unit = onProfileClick,
     modifier: Modifier = Modifier
@@ -31,7 +30,6 @@ fun HisabTopBar(
         onToggleDarkMode = onToggleDarkMode,
         onSetThemeMode = onSetThemeMode,
         onToggleLanguage = onToggleLanguage,
-        onTogglePrivacy = onTogglePrivacy,
         onProfileClick = onProfileClick,
         onSettingsClick = onSettingsClick,
         modifier = modifier

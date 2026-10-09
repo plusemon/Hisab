@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -53,7 +51,6 @@ import com.plusemon.hisab.domain.util.Localization
  * Features:
  * 1. Profile row: Avatar + Greeting & User Name with compact sync status.
  * 2. Header actions:
- *    - Privacy eye toggle (hide/show balances)
  *    - Language Switch button styled as uploaded pill design [ 文A EN / বাং ]
  *    - Theme Switcher with System Default (default), Light, and Dark modes.
  */
@@ -66,7 +63,6 @@ fun DashboardHeader(
     onToggleDarkMode: () -> Unit = {},
     onSetThemeMode: (useSystem: Boolean, isDark: Boolean) -> Unit = { _, _ -> },
     onToggleLanguage: () -> Unit = {},
-    onTogglePrivacy: (() -> Unit)? = null,
     onProfileClick: () -> Unit = {},
     onSettingsClick: () -> Unit = onProfileClick,
     modifier: Modifier = Modifier
@@ -150,40 +146,13 @@ fun DashboardHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                // Right side: Action Controls (Privacy Eye, Language Pill, Theme Switcher)
+                // Right side: Action Controls (Language Pill, Theme Switcher)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Optional Eye Toggle (Hide / Show balances)
-                    if (onTogglePrivacy != null) {
-                        Surface(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onTogglePrivacy() }
-                                .testTag("header_privacy_btn"),
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                            shadowElevation = 0.dp
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (settings.hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (isBn) "ব্যালেন্স দেখান বা লুকান" else "Toggle Balance Visibility",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
-                        }
-                    }
-
                     // Language Switch Button (Pill Design matching uploaded screenshot: [ 文A EN / বাং ])
                     Surface(
                         modifier = Modifier

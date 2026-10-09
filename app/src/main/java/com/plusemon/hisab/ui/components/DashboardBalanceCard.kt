@@ -60,7 +60,6 @@ fun DashboardBalanceCard(
     hideBalances: Boolean,
     isBangla: Boolean,
     currentMonthYear: String = Formatters.getCurrentMonthYear(),
-    onTogglePrivacy: (() -> Unit)? = null,
     onMonthClick: (() -> Unit)? = null,
     onIncomeClick: (() -> Unit)? = null,
     onExpenseClick: (() -> Unit)? = null,

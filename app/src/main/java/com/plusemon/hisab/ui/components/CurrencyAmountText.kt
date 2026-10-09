@@ -32,7 +32,7 @@ fun CurrencyAmountText(
         hideBalances = hideBalances
     )
 
-    val displayText = if (hideBalances) formatted else "$prefix$formatted"
+    val displayText = "$prefix$formatted"
 
     Text(
         text = displayText,
