@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,17 +40,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,7 +71,9 @@ import com.plusemon.hisab.ui.components.DetailTopAppBar
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.theme.ExpenseRed
+import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,11 +86,15 @@ fun ManageCategoriesScreen(
     val isBn = settings.language == "bn"
     val allCategories by viewModel.categories.collectAsState()
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val currentType = if (selectedTabIndex == 0) TransactionType.EXPENSE else TransactionType.INCOME
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val coroutineScope = rememberCoroutineScope()
+    val currentType = if (pagerState.currentPage == 0) TransactionType.EXPENSE else TransactionType.INCOME
 
-    val filteredCategories = remember(allCategories, currentType) {
-        allCategories.filter { it.type == currentType }
+    val expenseCategories = remember(allCategories) {
+        allCategories.filter { it.type == TransactionType.EXPENSE }
+    }
+    val incomeCategories = remember(allCategories) {
+        allCategories.filter { it.type == TransactionType.INCOME }
     }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
@@ -121,67 +131,91 @@ fun ManageCategoriesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tab Row (Expense vs Income)
+            // Tab Row (Expense vs Income) with swipeable HorizontalPager
             TabRow(
-                selectedTabIndex = selectedTabIndex,
+                selectedTabIndex = pagerState.currentPage,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
+                indicator = { tabPositions ->
+                    if (pagerState.currentPage < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                            color = if (pagerState.currentPage == 0) ExpenseRed else IncomeGreen
+                        )
+                    }
+                }
             ) {
                 Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { selectedTabIndex = 0 },
+                    selected = pagerState.currentPage == 0,
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(0)
+                        }
+                    },
                     text = {
                         Text(
                             text = if (isBn) "খরচের ক্যাটাগরি" else "Expenses",
-                            fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium
+                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Medium,
+                            color = if (pagerState.currentPage == 0) ExpenseRed else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier.testTag("tab_expense_categories")
                 )
                 Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = { selectedTabIndex = 1 },
+                    selected = pagerState.currentPage == 1,
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(1)
+                        }
+                    },
                     text = {
                         Text(
                             text = if (isBn) "আয়ের ক্যাটাগরি" else "Income",
-                            fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium
+                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Medium,
+                            color = if (pagerState.currentPage == 1) IncomeGreen else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier.testTag("tab_income_categories")
                 )
             }
 
-            if (filteredCategories.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isBn) "কোন ক্যাটাগরি পাওয়া যায়নি" else "No categories found",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredCategories, key = { it.id }) { cat ->
-                        CategoryListItem(
-                            category = cat,
-                            isBangla = isBn,
-                            onEdit = {
-                                categoryToEdit = cat
-                                showAddEditDialog = true
-                            },
-                            onDelete = {
-                                categoryToDelete = cat
-                            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val categoriesForPage = if (page == 0) expenseCategories else incomeCategories
+
+                if (categoriesForPage.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isBn) "কোন ক্যাটাগরি পাওয়া যায়নি" else "No categories found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(categoriesForPage, key = { it.id }) { cat ->
+                            CategoryListItem(
+                                category = cat,
+                                isBangla = isBn,
+                                onEdit = {
+                                    categoryToEdit = cat
+                                    showAddEditDialog = true
+                                },
+                                onDelete = {
+                                    categoryToDelete = cat
+                                }
+                            )
+                        }
                     }
                 }
             }

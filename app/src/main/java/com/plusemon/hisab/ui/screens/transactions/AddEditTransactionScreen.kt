@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,14 +52,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +93,7 @@ import com.plusemon.hisab.ui.theme.ExpenseRed
 import com.plusemon.hisab.ui.theme.IncomeGreen
 import com.plusemon.hisab.ui.theme.TransferBlue
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +110,15 @@ fun AddEditTransactionScreen(
 
     val accountsWithBalances by viewModel.accountsWithBalances.collectAsState()
     val categories by viewModel.categories.collectAsState()
+
+    val initialPageIndex = when (existingTransaction?.transaction?.type ?: initialType) {
+        TransactionType.EXPENSE -> 0
+        TransactionType.INCOME -> 1
+        TransactionType.TRANSFER -> 2
+    }
+
+    val pagerState = rememberPagerState(initialPage = initialPageIndex) { 3 }
+    val coroutineScope = rememberCoroutineScope()
 
     var transactionType by remember {
         mutableStateOf(existingTransaction?.transaction?.type ?: initialType)
@@ -150,13 +166,34 @@ fun AddEditTransactionScreen(
         )
     }
 
+    // Sync transactionType and selected category when swiping between tabs
+    LaunchedEffect(pagerState.currentPage) {
+        if (existingTransaction == null) {
+            val newType = when (pagerState.currentPage) {
+                0 -> TransactionType.EXPENSE
+                1 -> TransactionType.INCOME
+                2 -> TransactionType.TRANSFER
+                else -> TransactionType.EXPENSE
+            }
+            if (transactionType != newType) {
+                transactionType = newType
+                if (newType == TransactionType.TRANSFER) {
+                    selectedCategoryId = null
+                } else {
+                    val matching = categories.firstOrNull { it.id == selectedCategoryId && it.type == newType }
+                    selectedCategoryId = matching?.id ?: categories.firstOrNull { it.type == newType }?.id
+                }
+            }
+        }
+    }
+
     // Ensure data is seeded if empty
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         viewModel.ensureDefaultData()
     }
 
     // Keep selectedAccountId in sync as accounts load reactively
-    androidx.compose.runtime.LaunchedEffect(availableAccounts) {
+    LaunchedEffect(availableAccounts) {
         if (availableAccounts.isNotEmpty()) {
             if (selectedAccountId <= 0L || availableAccounts.none { it.id == selectedAccountId }) {
                 selectedAccountId = availableAccounts.first().id
@@ -168,7 +205,7 @@ fun AddEditTransactionScreen(
     }
 
     // Keep selectedCategoryId in sync when switching types or when categories load reactively
-    androidx.compose.runtime.LaunchedEffect(typeCategories, transactionType) {
+    LaunchedEffect(typeCategories, transactionType) {
         if (transactionType != TransactionType.TRANSFER) {
             if (selectedCategoryId == null || typeCategories.none { it.id == selectedCategoryId }) {
                 selectedCategoryId = typeCategories.firstOrNull()?.id
@@ -222,13 +259,70 @@ fun AddEditTransactionScreen(
         }
     }
 
+    val handleSave: (TransactionType) -> Unit = { targetType ->
+        val amount = amountText.toDoubleOrNull() ?: 0.0
+        if (amount <= 0.0) {
+            errorMessage = if (isBn) "সঠিক টাকার পরিমাণ লিখুন" else "Please enter a valid amount"
+        } else {
+            val effectiveAccountId = if (selectedAccountId > 0L) selectedAccountId else availableAccounts.firstOrNull()?.id ?: 0L
+            if (effectiveAccountId <= 0L) {
+                viewModel.ensureDefaultData()
+                errorMessage = if (isBn) "অনুগ্রহ করে একটি অ্যাকাউন্ট নির্বাচন করুন বা তৈরি করুন" else "Please select or create an account"
+            } else {
+                val effectiveToAccountId = if (selectedToAccountId > 0L) selectedToAccountId else availableAccounts.getOrNull(1)?.id ?: effectiveAccountId
+
+                if (targetType == TransactionType.TRANSFER && effectiveAccountId == effectiveToAccountId) {
+                    errorMessage = if (isBn) "একই অ্যাকাউন্টে স্থানান্তর সম্ভব নয়" else "Source and target accounts must be different"
+                } else {
+                    val fee = feeText.toDoubleOrNull() ?: 0.0
+                    val exchangeRate = exchangeRateText.toDoubleOrNull() ?: 1.0
+                    val effectiveCategoryId = if (targetType == TransactionType.TRANSFER) null else {
+                        val validCat = categories.firstOrNull { it.id == selectedCategoryId && it.type == targetType }
+                        validCat?.id ?: categories.firstOrNull { it.type == targetType }?.id
+                    }
+
+                    if (existingTransaction == null) {
+                        viewModel.addTransaction(
+                            accountId = effectiveAccountId,
+                            categoryId = effectiveCategoryId,
+                            toAccountId = if (targetType == TransactionType.TRANSFER) effectiveToAccountId else null,
+                            amount = amount,
+                            fee = fee,
+                            type = targetType,
+                            dateTimestamp = dateTimestamp,
+                            note = note,
+                            receiptUri = receiptUriStr,
+                            exchangeRate = exchangeRate
+                        )
+                    } else {
+                        viewModel.updateTransaction(
+                            id = existingTransaction.transaction.id,
+                            accountId = effectiveAccountId,
+                            categoryId = effectiveCategoryId,
+                            toAccountId = if (targetType == TransactionType.TRANSFER) effectiveToAccountId else null,
+                            amount = amount,
+                            fee = fee,
+                            type = targetType,
+                            dateTimestamp = dateTimestamp,
+                            note = note,
+                            receiptUri = receiptUriStr,
+                            exchangeRate = exchangeRate
+                        )
+                    }
+                    onNavigateBack()
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             val titleText = if (existingTransaction == null) {
-                when (transactionType) {
-                    TransactionType.EXPENSE -> Localization.getString(Localization.Key.ADD_EXPENSE, isBn)
-                    TransactionType.INCOME -> Localization.getString(Localization.Key.ADD_INCOME, isBn)
-                    TransactionType.TRANSFER -> Localization.getString(Localization.Key.TRANSFER, isBn)
+                when (pagerState.currentPage) {
+                    0 -> Localization.getString(Localization.Key.ADD_EXPENSE, isBn)
+                    1 -> Localization.getString(Localization.Key.ADD_INCOME, isBn)
+                    2 -> Localization.getString(Localization.Key.TRANSFER, isBn)
+                    else -> Localization.getString(Localization.Key.ADD_EXPENSE, isBn)
                 }
             } else {
                 if (isBn) "লেনদেন সম্পাদন" else "Edit Transaction"
@@ -258,32 +352,86 @@ fun AddEditTransactionScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            // Type Selector Tabs (Expense / Income / Transfer)
-            if (existingTransaction == null) {
-                TabRow(
-                    selectedTabIndex = when (transactionType) {
-                        TransactionType.EXPENSE -> 0
-                        TransactionType.INCOME -> 1
-                        TransactionType.TRANSFER -> 2
+        if (existingTransaction != null) {
+            // Edit mode: single scrollable column without tabs
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                TransactionFormFields(
+                    type = transactionType,
+                    amountText = amountText,
+                    onAmountChange = {
+                        amountText = it
+                        errorMessage = null
                     },
+                    currSymbol = currSymbol,
+                    isBn = isBn,
+                    availableAccounts = availableAccounts,
+                    selectedAccountId = selectedAccountId,
+                    onSelectAccountId = { selectedAccountId = it },
+                    selectedToAccountId = selectedToAccountId,
+                    onSelectToAccountId = { selectedToAccountId = it },
+                    feeText = feeText,
+                    onFeeChange = { feeText = it },
+                    categories = typeCategories,
+                    selectedCategoryId = selectedCategoryId,
+                    onSelectCategoryId = { selectedCategoryId = it },
+                    dateTimestamp = dateTimestamp,
+                    note = note,
+                    onNoteChange = { note = it },
+                    receiptUriStr = receiptUriStr,
+                    onPickReceipt = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    onRemoveReceipt = { receiptUriStr = null },
+                    errorMessage = errorMessage,
+                    onSave = { handleSave(transactionType) },
+                    onEnsureDefaultData = { viewModel.ensureDefaultData() }
+                )
+            }
+        } else {
+            // Add mode: TabRow + Swipeable HorizontalPager
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding()
+            ) {
+                // Type Selector Tabs (Expense / Income / Transfer)
+                TabRow(
+                    selectedTabIndex = pagerState.currentPage,
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .padding(bottom = 16.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    indicator = { tabPositions ->
+                        if (pagerState.currentPage < tabPositions.size) {
+                            val indicatorColor = when (pagerState.currentPage) {
+                                0 -> ExpenseRed
+                                1 -> IncomeGreen
+                                else -> TransferBlue
+                            }
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                                color = indicatorColor
+                            )
+                        }
+                    }
                 ) {
                     Tab(
-                        selected = transactionType == TransactionType.EXPENSE,
+                        selected = pagerState.currentPage == 0,
                         onClick = {
-                            transactionType = TransactionType.EXPENSE
-                            selectedCategoryId = categories.firstOrNull { it.type == TransactionType.EXPENSE }?.id
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(0)
+                            }
                         },
                         text = {
                             Text(
@@ -291,16 +439,17 @@ fun AddEditTransactionScreen(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (transactionType == TransactionType.EXPENSE) ExpenseRed else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (pagerState.currentPage == 0) ExpenseRed else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         modifier = Modifier.testTag("tab_expense")
                     )
                     Tab(
-                        selected = transactionType == TransactionType.INCOME,
+                        selected = pagerState.currentPage == 1,
                         onClick = {
-                            transactionType = TransactionType.INCOME
-                            selectedCategoryId = categories.firstOrNull { it.type == TransactionType.INCOME }?.id
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(1)
+                            }
                         },
                         text = {
                             Text(
@@ -308,16 +457,17 @@ fun AddEditTransactionScreen(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (transactionType == TransactionType.INCOME) IncomeGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (pagerState.currentPage == 1) IncomeGreen else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         modifier = Modifier.testTag("tab_income")
                     )
                     Tab(
-                        selected = transactionType == TransactionType.TRANSFER,
+                        selected = pagerState.currentPage == 2,
                         onClick = {
-                            transactionType = TransactionType.TRANSFER
-                            selectedCategoryId = null
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(2)
+                            }
                         },
                         text = {
                             Text(
@@ -325,430 +475,458 @@ fun AddEditTransactionScreen(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (transactionType == TransactionType.TRANSFER) TransferBlue else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (pagerState.currentPage == 2) TransferBlue else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         modifier = Modifier.testTag("tab_transfer")
                     )
                 }
-            }
 
-            // Big Amount Input Card (Flat card with border)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1
+                ) { page ->
+                    val pageType = when (page) {
+                        0 -> TransactionType.EXPENSE
+                        1 -> TransactionType.INCOME
+                        else -> TransactionType.TRANSFER
+                    }
+                    val pageCategories = remember(categories, pageType) {
+                        categories.filter { it.type == pageType }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        TransactionFormFields(
+                            type = pageType,
+                            amountText = amountText,
+                            onAmountChange = {
+                                amountText = it
+                                errorMessage = null
+                            },
+                            currSymbol = currSymbol,
+                            isBn = isBn,
+                            availableAccounts = availableAccounts,
+                            selectedAccountId = selectedAccountId,
+                            onSelectAccountId = { selectedAccountId = it },
+                            selectedToAccountId = selectedToAccountId,
+                            onSelectToAccountId = { selectedToAccountId = it },
+                            feeText = feeText,
+                            onFeeChange = { feeText = it },
+                            categories = pageCategories,
+                            selectedCategoryId = selectedCategoryId,
+                            onSelectCategoryId = { selectedCategoryId = it },
+                            dateTimestamp = dateTimestamp,
+                            note = note,
+                            onNoteChange = { note = it },
+                            receiptUriStr = receiptUriStr,
+                            onPickReceipt = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            onRemoveReceipt = { receiptUriStr = null },
+                            errorMessage = errorMessage,
+                            onSave = { handleSave(pageType) },
+                            onEnsureDefaultData = { viewModel.ensureDefaultData() }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransactionFormFields(
+    type: TransactionType,
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    currSymbol: String,
+    isBn: Boolean,
+    availableAccounts: List<UserAccount>,
+    selectedAccountId: Long,
+    onSelectAccountId: (Long) -> Unit,
+    selectedToAccountId: Long,
+    onSelectToAccountId: (Long) -> Unit,
+    feeText: String,
+    onFeeChange: (String) -> Unit,
+    categories: List<Category>,
+    selectedCategoryId: Long?,
+    onSelectCategoryId: (Long) -> Unit,
+    dateTimestamp: Long,
+    note: String,
+    onNoteChange: (String) -> Unit,
+    receiptUriStr: String?,
+    onPickReceipt: () -> Unit,
+    onRemoveReceipt: () -> Unit,
+    errorMessage: String?,
+    onSave: () -> Unit,
+    onEnsureDefaultData: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        // Big Amount Input Card (Flat card with border)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Text(
+                    text = Localization.getString(Localization.Key.AMOUNT, isBn),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = Localization.getString(Localization.Key.AMOUNT, isBn),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = currSymbol,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when (type) {
+                            TransactionType.EXPENSE -> ExpenseRed
+                            TransactionType.INCOME -> IncomeGreen
+                            TransactionType.TRANSFER -> TransferBlue
+                        }
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = currSymbol,
-                            fontSize = 32.sp,
+                    OutlinedTextField(
+                        value = amountText,
+                        onValueChange = {
+                            if (it.isEmpty() || it.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
+                                onAmountChange(it)
+                            }
+                        },
+                        placeholder = { Text("0.00", fontSize = 32.sp, fontWeight = FontWeight.Bold) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            color = when (transactionType) {
+                            color = when (type) {
                                 TransactionType.EXPENSE -> ExpenseRed
                                 TransactionType.INCOME -> IncomeGreen
                                 TransactionType.TRANSFER -> TransferBlue
                             }
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        OutlinedTextField(
-                            value = amountText,
-                            onValueChange = {
-                                if (it.isEmpty() || it.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
-                                    amountText = it
-                                    errorMessage = null
-                                }
-                            },
-                            placeholder = { Text("0.00", fontSize = 32.sp, fontWeight = FontWeight.Bold) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = when (transactionType) {
-                                    TransactionType.EXPENSE -> ExpenseRed
-                                    TransactionType.INCOME -> IncomeGreen
-                                    TransactionType.TRANSFER -> TransferBlue
-                                }
-                            ),
-                            modifier = Modifier
-                                .width(220.dp)
-                                .testTag("tx_amount_input")
-                        )
-                    }
-
-                    // Quick amount chips (+50, +100, +500, +1000)
-                    Row(
+                        ),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        listOf(50, 100, 500, 1000, 5000).forEach { quickVal ->
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        val currentVal = amountText.toDoubleOrNull() ?: 0.0
-                                        val nextVal = currentVal + quickVal
-                                        amountText = if (nextVal % 1.0 == 0.0) nextVal.toInt().toString() else nextVal.toString()
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    text = "+$quickVal",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // TRANSFER SECTION
-            if (transactionType == TransactionType.TRANSFER) {
-                Text(
-                    text = Localization.getString(Localization.Key.FROM_ACCOUNT, isBn),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                AccountSelectorChips(
-                    accounts = availableAccounts,
-                    selectedId = selectedAccountId,
-                    onSelect = { selectedAccountId = it }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = Localization.getString(Localization.Key.TO_ACCOUNT, isBn),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                AccountSelectorChips(
-                    accounts = availableAccounts,
-                    selectedId = selectedToAccountId,
-                    onSelect = { selectedToAccountId = it }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Optional Transfer Fee
-                OutlinedTextField(
-                    value = feeText,
-                    onValueChange = { feeText = it },
-                    label = { Text(Localization.getString(Localization.Key.FEE, isBn)) },
-                    placeholder = { Text("0.00") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                // EXPENSE / INCOME SECTION
-                Text(
-                    text = Localization.getString(Localization.Key.ACCOUNT, isBn),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                if (availableAccounts.isEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable { viewModel.ensureDefaultData() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Receipt,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = if (isBn) "কোনো অ্যাকাউন্ট পাওয়া যায়নি" else "No account found",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isBn) "ডিফল্ট অ্যাকাউন্ট তৈরি করতে এখানে ট্যাপ করুন" else "Tap here to load default accounts",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    AccountSelectorChips(
-                        accounts = availableAccounts,
-                        selectedId = selectedAccountId,
-                        onSelect = { selectedAccountId = it }
+                            .width(220.dp)
+                            .testTag("tx_amount_input")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Category Grid Selector
-                Text(
-                    text = Localization.getString(Localization.Key.CATEGORY, isBn),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (typeCategories.isEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable { viewModel.ensureDefaultData() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Receipt,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = if (isBn) "কোনো ক্যাটাগরি পাওয়া যায়নি" else "No categories found",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isBn) "ডিফল্ট ক্যাটাগরি লোড করতে এখানে ট্যাপ করুন" else "Tap here to reload default categories",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    CategoryGridSelector(
-                        categories = typeCategories,
-                        selectedCategoryId = selectedCategoryId,
-                        isBangla = isBn,
-                        onSelect = { selectedCategoryId = it }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Date & Time Display
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
+                // Quick amount chips (+50, +100, +500, +1000, +5000)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = Formatters.formatDateTime(dateTimestamp, isBn),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
+                    listOf(50, 100, 500, 1000, 5000).forEach { quickVal ->
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    val currentVal = amountText.toDoubleOrNull() ?: 0.0
+                                    val nextVal = currentVal + quickVal
+                                    onAmountChange(if (nextVal % 1.0 == 0.0) nextVal.toInt().toString() else nextVal.toString())
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = "+$quickVal",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Note field
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = { Text(Localization.getString(Localization.Key.NOTE, isBn)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = null) },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("tx_note_input")
+        // TRANSFER SECTION
+        if (type == TransactionType.TRANSFER) {
+            Text(
+                text = Localization.getString(Localization.Key.FROM_ACCOUNT, isBn),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            AccountSelectorChips(
+                accounts = availableAccounts,
+                selectedId = selectedAccountId,
+                onSelect = onSelectAccountId
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Receipt Photo Attachment
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextButton(
-                    onClick = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
-                ) {
-                    Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(Localization.getString(Localization.Key.RECEIPT, isBn), fontWeight = FontWeight.Bold)
-                }
+            Text(
+                text = Localization.getString(Localization.Key.TO_ACCOUNT, isBn),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            AccountSelectorChips(
+                accounts = availableAccounts,
+                selectedId = selectedToAccountId,
+                onSelect = onSelectToAccountId
+            )
 
-                if (receiptUriStr != null) {
-                    IconButton(onClick = { receiptUriStr = null }) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove receipt", tint = ExpenseRed)
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(12.dp))
 
-            if (receiptUriStr != null) {
-                AsyncImage(
-                    model = receiptUriStr,
-                    contentDescription = "Receipt Image",
-                    contentScale = ContentScale.Crop,
+            // Optional Transfer Fee
+            OutlinedTextField(
+                value = feeText,
+                onValueChange = onFeeChange,
+                label = { Text(Localization.getString(Localization.Key.FEE, isBn)) },
+                placeholder = { Text("0.00") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            // EXPENSE / INCOME SECTION
+            Text(
+                text = Localization.getString(Localization.Key.ACCOUNT, isBn),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            if (availableAccounts.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                        .padding(vertical = 8.dp)
+                        .clickable { onEnsureDefaultData() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isBn) "কোনো অ্যাকাউন্ট পাওয়া যায়নি" else "No account found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isBn) "ডিফল্ট অ্যাকাউন্ট তৈরি করতে এখানে ট্যাপ করুন" else "Tap here to load default accounts",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            } else {
+                AccountSelectorChips(
+                    accounts = availableAccounts,
+                    selectedId = selectedAccountId,
+                    onSelect = onSelectAccountId
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Save Button
-            Button(
-                onClick = {
-                    val amount = amountText.toDoubleOrNull() ?: 0.0
-                    if (amount <= 0.0) {
-                        errorMessage = if (isBn) "সঠিক টাকার পরিমাণ লিখুন" else "Please enter a valid amount"
-                        return@Button
-                    }
+            // Category Grid Selector
+            Text(
+                text = Localization.getString(Localization.Key.CATEGORY, isBn),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                    val effectiveAccountId = if (selectedAccountId > 0L) selectedAccountId else availableAccounts.firstOrNull()?.id ?: 0L
-                    if (effectiveAccountId <= 0L) {
-                        viewModel.ensureDefaultData()
-                        errorMessage = if (isBn) "অনুগ্রহ করে একটি অ্যাকাউন্ট নির্বাচন করুন বা তৈরি করুন" else "Please select or create an account"
-                        return@Button
-                    }
-
-                    val effectiveToAccountId = if (selectedToAccountId > 0L) selectedToAccountId else availableAccounts.getOrNull(1)?.id ?: effectiveAccountId
-
-                    if (transactionType == TransactionType.TRANSFER && effectiveAccountId == effectiveToAccountId) {
-                        errorMessage = if (isBn) "একই অ্যাকাউন্টে স্থানান্তর সম্ভব নয়" else "Source and target accounts must be different"
-                        return@Button
-                    }
-
-                    val fee = feeText.toDoubleOrNull() ?: 0.0
-                    val exchangeRate = exchangeRateText.toDoubleOrNull() ?: 1.0
-                    val effectiveCategoryId = if (transactionType == TransactionType.TRANSFER) null else (selectedCategoryId ?: typeCategories.firstOrNull()?.id)
-
-                    if (existingTransaction == null) {
-                        viewModel.addTransaction(
-                            accountId = effectiveAccountId,
-                            categoryId = effectiveCategoryId,
-                            toAccountId = if (transactionType == TransactionType.TRANSFER) effectiveToAccountId else null,
-                            amount = amount,
-                            fee = fee,
-                            type = transactionType,
-                            dateTimestamp = dateTimestamp,
-                            note = note,
-                            receiptUri = receiptUriStr,
-                            exchangeRate = exchangeRate
+            if (categories.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { onEnsureDefaultData() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
                         )
-                    } else {
-                        viewModel.updateTransaction(
-                            id = existingTransaction.transaction.id,
-                            accountId = effectiveAccountId,
-                            categoryId = effectiveCategoryId,
-                            toAccountId = if (transactionType == TransactionType.TRANSFER) effectiveToAccountId else null,
-                            amount = amount,
-                            fee = fee,
-                            type = transactionType,
-                            dateTimestamp = dateTimestamp,
-                            note = note,
-                            receiptUri = receiptUriStr,
-                            exchangeRate = exchangeRate
-                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isBn) "কোনো ক্যাটাগরি পাওয়া যায়নি" else "No categories found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isBn) "ডিফল্ট ক্যাটাগরি লোড করতে এখানে ট্যাপ করুন" else "Tap here to reload default categories",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
-                    onNavigateBack()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("save_transaction_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when (transactionType) {
-                        TransactionType.EXPENSE -> ExpenseRed
-                        TransactionType.INCOME -> IncomeGreen
-                        TransactionType.TRANSFER -> TransferBlue
-                    }
-                )
-            ) {
-                Icon(Icons.Default.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = Localization.getString(Localization.Key.SAVE, isBn),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                }
+            } else {
+                CategoryGridSelector(
+                    categories = categories,
+                    selectedCategoryId = selectedCategoryId,
+                    isBangla = isBn,
+                    onSelect = onSelectCategoryId
                 )
             }
-
-            Spacer(modifier = Modifier.height(48.dp))
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Date & Time Display
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp)),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = Formatters.formatDateTime(dateTimestamp, isBn),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Note field
+        OutlinedTextField(
+            value = note,
+            onValueChange = onNoteChange,
+            label = { Text(Localization.getString(Localization.Key.NOTE, isBn)) },
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = null) },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("tx_note_input")
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Receipt Photo Attachment
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                onClick = onPickReceipt
+            ) {
+                Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(Localization.getString(Localization.Key.RECEIPT, isBn), fontWeight = FontWeight.Bold)
+            }
+
+            if (receiptUriStr != null) {
+                IconButton(onClick = onRemoveReceipt) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove receipt", tint = ExpenseRed)
+                }
+            }
+        }
+
+        if (receiptUriStr != null) {
+            AsyncImage(
+                model = receiptUriStr,
+                contentDescription = "Receipt Image",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Save Button
+        Button(
+            onClick = onSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .testTag("save_transaction_button"),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = when (type) {
+                    TransactionType.EXPENSE -> ExpenseRed
+                    TransactionType.INCOME -> IncomeGreen
+                    TransactionType.TRANSFER -> TransferBlue
+                }
+            )
+        ) {
+            Icon(Icons.Default.Check, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = Localization.getString(Localization.Key.SAVE, isBn),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 
