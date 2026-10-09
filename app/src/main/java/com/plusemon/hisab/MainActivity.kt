@@ -187,7 +187,7 @@ fun HisabMainApp(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            if (!isSubscreen && !isDebtDetailActive) {
+            if (!isSubscreen && !isDebtDetailActive && pagerState.currentPage != 4) {
                 DashboardHeader(
                     user = currentUser,
                     settings = settings,

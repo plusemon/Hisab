@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,11 +26,9 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TableChart
@@ -37,12 +36,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -62,8 +62,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.plusemon.hisab.data.model.AppSyncStatus
+import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.VersionUtils
-import com.plusemon.hisab.ui.components.RealTimeStatusBadge
 import com.plusemon.hisab.ui.components.UserAvatar
 import com.plusemon.hisab.ui.viewmodel.HisabViewModel
 
@@ -91,15 +92,16 @@ fun MoreScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .padding(bottom = 88.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(bottom = 96.dp)
     ) {
         // Top Title
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(top = 4.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -110,9 +112,7 @@ fun MoreScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Profile & Account Banner Card
+        // Profile Card with Edit/Settings shortcut
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -120,18 +120,18 @@ fun MoreScreen(
                 .testTag("more_profile_banner"),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 UserAvatar(
                     photoUrl = currentUser?.photoUrl,
                     displayName = currentUser?.displayName,
-                    size = 48.dp,
+                    size = 52.dp,
                     shape = CircleShape,
                     border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                 )
@@ -166,8 +166,10 @@ fun MoreScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = currentUser?.email ?: (if (isBn) "অফলাইন মোড" else "Offline Account"),
+                        text = currentUser?.email ?: (if (isBn) "অফলাইন অ্যাকাউন্ট" else "Offline Account"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -175,12 +177,23 @@ fun MoreScreen(
                     )
                 }
 
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
+                // Edit / Settings shortcut button
+                FilledTonalIconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .testTag("more_profile_edit_btn"),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = if (isBn) "সেটিংস খুলুন" else "Edit Settings",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
@@ -193,16 +206,16 @@ fun MoreScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         ) {
             Column {
                 MoreTileItem(
                     icon = Icons.Default.BarChart,
                     iconBgColor = MaterialTheme.colorScheme.primaryContainer,
                     iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    title = if (isBn) "রিপোর্ট ও বিবরণী" else "Reports & Statements",
+                    title = if (isBn) "রিপোর্ট ও বিবরণী" else "Reports & Insights",
                     subtitle = if (isBn) "আয়-ব্যয়ের চিত্রলৈখিক বিশ্লেষণ ও ট্রেন্ড" else "Income vs Expense, category breakdowns & trends",
                     onClick = onNavigateToReports,
                     testTag = "more_reports_tile"
@@ -210,7 +223,7 @@ fun MoreScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
 
                 MoreTileItem(
@@ -218,7 +231,7 @@ fun MoreScreen(
                     iconBgColor = Color(0xFF10B981).copy(alpha = 0.14f),
                     iconTint = Color(0xFF047857),
                     title = if (isBn) "তথ্য এক্সপোর্ট (PDF / Excel)" else "Export Data (PDF / Excel)",
-                    subtitle = if (isBn) "এক্সেলে সিএসভি বা মাসিক বিবরণী শেয়ার ও সংরক্ষণ" else "Export transactions to Excel (CSV) or Financial Summary",
+                    subtitle = if (isBn) "এক্সেলে সিএসভি বা আর্থিক বিবরণী শেয়ার ও সংরক্ষণ" else "Export transactions to Excel (CSV) or Financial Summary",
                     onClick = { showExportDialog = true },
                     testTag = "more_export_tile"
                 )
@@ -234,9 +247,9 @@ fun MoreScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         ) {
             Column {
                 MoreTileItem(
@@ -252,7 +265,7 @@ fun MoreScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
 
                 MoreTileItem(
@@ -270,217 +283,60 @@ fun MoreScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // SECTION 3: APP SETTINGS & PREFERENCES
+        // SECTION 3: APP SETTINGS & CLOUD (Clean navigation tiles without duplicate controls)
         SectionHeader(
-            title = if (isBn) "অ্যাপ সেটিংস ও পছন্দসমূহ" else "App Settings & Preferences"
+            title = if (isBn) "অ্যাপ সেটিংস ও ক্লাউড" else "Settings & Cloud"
         )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         ) {
             Column {
-                // App Settings & Security
+                // Navigation tile to Settings & Security
                 MoreTileItem(
                     icon = Icons.Default.Settings,
                     iconBgColor = MaterialTheme.colorScheme.secondaryContainer,
                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                     title = if (isBn) "সেটিংস ও নিরাপত্তা" else "Settings & Security",
-                    subtitle = if (isBn) "পিন কোড সুরক্ষা, স্বয়ংক্রিয় লেনদেন ও ডেটা" else "PIN Lock, Recurring rules, Data management",
+                    subtitle = if (isBn) "ভাষা, ডার্ক মোড, পিন কোড ও পছন্দসমূহ" else "Language, dark mode, PIN protection & preferences",
                     onClick = onNavigateToSettings,
                     testTag = "more_settings_tile"
                 )
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
 
-                // Language Switch Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.toggleLanguage() }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                        .testTag("more_language_tile"),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFF59E0B).copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                tint = Color(0xFFB45309),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column {
-                            Text(
-                                text = if (isBn) "ভাষা" else "Language",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isBn) "বর্তমান: বাংলা (ট্যাপ করে পরিবর্তন করুন)" else "Current: English (Tap to toggle to Bangla)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                // Cloud Backup & Sync (simple list tile showing last sync time, tapping initiates manual sync)
+                val syncSubtitle = when (syncStatus) {
+                    is AppSyncStatus.Syncing -> if (isBn) "ক্লাউড সিঙ্ক চলছে..." else "Syncing with cloud..."
+                    is AppSyncStatus.Synced -> {
+                        val timeStr = Formatters.formatTime((syncStatus as AppSyncStatus.Synced).timestamp)
+                        if (isBn) "সর্বশেষ সিঙ্ক: $timeStr • ট্যাপ করে সিঙ্ক করুন" else "Last synced: $timeStr • Tap to sync"
                     }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                    ) {
-                        Text(
-                            text = if (isBn) "বাংলা" else "EN",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
+                    is AppSyncStatus.Saved -> {
+                        val timeStr = Formatters.formatTime((syncStatus as AppSyncStatus.Saved).timestamp)
+                        if (isBn) "সর্বশেষ সংরক্ষণ: $timeStr • ট্যাপ করে সিঙ্ক করুন" else "Last saved: $timeStr • Tap to sync"
                     }
+                    is AppSyncStatus.Error -> {
+                        if (isBn) "সিঙ্কে সমস্যা হয়েছে • ট্যাপ করে পুনরায় চেষ্টা করুন" else "Sync failed • Tap to retry"
+                    }
+                    else -> if (isBn) "ক্লাউড ব্যাকআপ • ট্যাপ করে সিঙ্ক করুন" else "Cloud backup • Tap to sync now"
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                MoreTileItem(
+                    icon = Icons.Default.CloudSync,
+                    iconBgColor = Color(0xFF0F766E).copy(alpha = 0.14f),
+                    iconTint = Color(0xFF0F766E),
+                    title = if (isBn) "ক্লাউড ব্যাকআপ ও সিঙ্ক" else "Cloud Backup & Sync",
+                    subtitle = syncSubtitle,
+                    onClick = { viewModel.triggerManualSync() },
+                    testTag = "more_sync_tile"
                 )
-
-                // Theme Switcher Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.toggleDarkMode() }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                        .testTag("more_theme_tile"),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (settings.isDarkMode) Color(0xFF1E293B)
-                                    else Color(0xFFFEF3C7)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (settings.isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                contentDescription = null,
-                                tint = if (settings.isDarkMode) Color(0xFFFBBF24) else Color(0xFFD97706),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column {
-                            Text(
-                                text = if (isBn) "ডার্ক মোড" else "Dark Theme",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (settings.isDarkMode) {
-                                    if (isBn) "ডার্ক মোড চালু রয়েছে" else "Dark mode is ON"
-                                } else {
-                                    if (isBn) "লাইট মোড চালু রয়েছে" else "Light mode is ON"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Switch(
-                        checked = settings.isDarkMode,
-                        onCheckedChange = { viewModel.toggleDarkMode() },
-                        modifier = Modifier.testTag("more_dark_mode_switch")
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                )
-
-                // Cloud Backup & Sync Status Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.triggerManualSync() }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                        .testTag("more_sync_tile"),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF0F766E).copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudSync,
-                                contentDescription = null,
-                                tint = Color(0xFF0F766E),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column {
-                            Text(
-                                text = if (isBn) "ক্লাউড ব্যাকআপ ও সিঙ্ক" else "Cloud Backup & Sync",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isBn) "ট্যাপ করে সাথে সাথে সিঙ্ক করুন" else "Real-time sync • Tap to sync now",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    RealTimeStatusBadge(
-                        status = syncStatus,
-                        isBn = isBn,
-                        onSyncClick = { viewModel.triggerManualSync() }
-                    )
-                }
             }
         }
 

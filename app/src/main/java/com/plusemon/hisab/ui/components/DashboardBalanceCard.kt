@@ -43,8 +43,9 @@ import com.plusemon.hisab.domain.util.Formatters
 import com.plusemon.hisab.domain.util.Localization
 
 /**
- * Modern, responsive Dashboard Balance & Monthly Overview Card.
- * Fully adapts to any screen width and font scale without text wrapping issues.
+ * Modernized, dark-mode integrated Dashboard Balance & Monthly Overview Hero Card.
+ * Adheres to dark surface hierarchy with high-contrast typography, dedicated dark surface tiles,
+ * and sleek fintech indicators.
  */
 @Composable
 fun DashboardBalanceCard(
@@ -64,35 +65,38 @@ fun DashboardBalanceCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag("dashboard_balance_hero_card"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF161F30)),
+        border = BorderStroke(1.dp, Color(0xFF1E3A4A)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    brush = Brush.linearGradient(
+                    brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0D5E56),
-                            Color(0xFF0F766E),
-                            Color(0xFF042F2E)
+                            Color(0xFF161F30),
+                            Color(0xFF0F1A2A)
                         )
                     )
                 )
                 .drawBehind {
-                    // Soft ambient decorative light glow in top-right
+                    // Subtle top radial glow for a sleek, modern fintech aesthetic
                     drawCircle(
-                        color = Color(0xFF2DD4BF).copy(alpha = 0.16f),
-                        radius = size.width * 0.40f,
-                        center = Offset(size.width * 0.88f, size.height * 0.15f)
-                    )
-                    // Secondary subtle glow in bottom-left
-                    drawCircle(
-                        color = Color(0xFF14B8A6).copy(alpha = 0.10f),
-                        radius = size.width * 0.35f,
-                        center = Offset(size.width * 0.08f, size.height * 0.90f)
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF2DD4BF).copy(alpha = 0.07f),
+                                Color(0xFF0F766E).copy(alpha = 0.03f),
+                                Color.Transparent
+                            ),
+                            center = Offset(size.width * 0.5f, 0f),
+                            radius = size.width * 0.75f
+                        ),
+                        radius = size.width * 0.75f,
+                        center = Offset(size.width * 0.5f, 0f)
                     )
                 }
                 .padding(20.dp)
@@ -104,20 +108,18 @@ fun DashboardBalanceCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBangla),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color.White.copy(alpha = 0.90f),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Text(
+                        text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBangla),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color(0xFF94A3B8),
+                        fontWeight = FontWeight.Medium
+                    )
 
-                    // Month Chip (frosted glass aesthetic)
+                    // Month Chip (dark slate tile)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                        color = Color(0xFF1E293B),
+                        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.8f))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -126,14 +128,14 @@ fun DashboardBalanceCard(
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(12.dp)
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = Formatters.formatMonthYear(currentMonthYear, isBangla),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                color = Color(0xFFE2E8F0),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -142,7 +144,7 @@ fun DashboardBalanceCard(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Hero Big Amount Number & Net Cashflow Indicator
+                // Hero Big Amount Number & Net Difference Pill
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Bottom,
@@ -153,8 +155,8 @@ fun DashboardBalanceCard(
                         currencySymbol = currencySymbol,
                         useBanglaDigits = useBanglaDigits,
                         hideBalances = hideBalances,
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineLarge.copy(
+                        color = Color(0xFFFFFFFF),
+                        style = MaterialTheme.typography.headlineMedium.copy(
                             fontSize = 32.sp,
                             letterSpacing = (-0.5).sp
                         ),
@@ -164,36 +166,37 @@ fun DashboardBalanceCard(
                             .testTag("hero_total_balance_text")
                     )
 
-                    // High-Contrast Net Cash Flow Badge (Income - Expense)
+                    // High-Contrast Difference Badge: Crisp green on dark-green (or rose on dark-red)
                     val netSavings = monthIncome - monthExpense
                     if (monthIncome > 0 || monthExpense > 0) {
                         val isPositive = netSavings >= 0
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isPositive) Color(0xFF064E3B) else Color(0xFF7F1D1D),
+                            color = if (isPositive) Color(0xFF14382A) else Color(0xFF4C1D24),
                             border = BorderStroke(
                                 1.dp,
-                                if (isPositive) Color(0xFF34D399).copy(alpha = 0.70f) else Color(0xFFF87171).copy(alpha = 0.70f)
+                                if (isPositive) Color(0xFF059669).copy(alpha = 0.40f) else Color(0xFFDC2626).copy(alpha = 0.40f)
                             ),
-                            modifier = Modifier.padding(bottom = 4.dp, start = 8.dp)
+                            modifier = Modifier
+                                .padding(bottom = 4.dp, start = 8.dp)
+                                .testTag("hero_difference_pill")
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isPositive) "+" else "-",
+                                    text = if (isPositive) "+ " else "- ",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
                                 CurrencyAmountText(
                                     amount = kotlin.math.abs(netSavings),
                                     currencySymbol = currencySymbol,
                                     useBanglaDigits = useBanglaDigits,
                                     hideBalances = hideBalances,
-                                    color = Color.White,
+                                    color = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
                                     fontWeight = FontWeight.Bold
                                 )
@@ -204,7 +207,7 @@ fun DashboardBalanceCard(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Responsive Sub-Cards for Income and Expenses
+                // Dedicated Dark Surface Tiles for Income & Expense Sub-Cards
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val isVeryNarrow = maxWidth < 310.dp
 
@@ -234,7 +237,7 @@ fun DashboardBalanceCard(
                             )
                         }
                     } else {
-                        // Side-by-side with vertical hierarchy inside each card
+                        // Side-by-side with clear visual indicators
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -278,40 +281,41 @@ private fun IncomeSubCard(
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .testTag("hero_income_subcard"),
         shape = RoundedCornerShape(14.dp),
-        color = Color.White.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+        color = Color(0xFF1E293B),
+        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.6f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 11.dp)
         ) {
-            // Header: Icon + Label
+            // Header: Subtle Green Icon Container + Muted Slate Label
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF10B981).copy(alpha = 0.30f)),
+                        .background(Color(0xFF064E3B)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = Color(0xFF6EE7B7),
-                        modifier = Modifier.size(13.dp)
+                        tint = Color(0xFF34D399),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBangla),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                    color = Color.White.copy(alpha = 0.90f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     softWrap = false,
@@ -321,14 +325,14 @@ private fun IncomeSubCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount: Full width of card prevents unwanted text wrapping!
+            // Amount: High contrast crisp white value
             CurrencyAmountText(
                 amount = amount,
                 currencySymbol = currencySymbol,
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                color = Color(0xFFFFFFFF),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,
@@ -351,40 +355,41 @@ private fun ExpenseSubCard(
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .testTag("hero_expense_subcard"),
         shape = RoundedCornerShape(14.dp),
-        color = Color.White.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+        color = Color(0xFF1E293B),
+        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.6f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 11.dp)
         ) {
-            // Header: Icon + Label
+            // Header: Subtle Red/Rose Icon Container + Muted Slate Label
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEF4444).copy(alpha = 0.30f)),
+                        .background(Color(0xFF4C1D24)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = null,
-                        tint = Color(0xFFFCA5A5),
-                        modifier = Modifier.size(13.dp)
+                        tint = Color(0xFFF87171),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBangla),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                    color = Color.White.copy(alpha = 0.90f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     softWrap = false,
@@ -394,14 +399,14 @@ private fun ExpenseSubCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount: Full width of card prevents unwanted text wrapping!
+            // Amount: High contrast crisp white value
             CurrencyAmountText(
                 amount = amount,
                 currencySymbol = currencySymbol,
                 useBanglaDigits = useBanglaDigits,
                 hideBalances = hideBalances,
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                color = Color(0xFFFFFFFF),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,

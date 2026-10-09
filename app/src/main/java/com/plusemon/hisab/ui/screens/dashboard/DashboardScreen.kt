@@ -252,7 +252,7 @@ fun DashboardScreen(
             monthExpense = monthExpense,
             currencySymbol = currSymbol,
             useBanglaDigits = useBnDigits,
-            hideBalances = false,
+            hideBalances = hideBalances,
             isBangla = isBn,
             currentMonthYear = Formatters.getCurrentMonthYear(),
             onIncomeClick = onNavigateToTransactions,
