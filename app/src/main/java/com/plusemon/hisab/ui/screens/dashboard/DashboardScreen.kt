@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -69,6 +70,7 @@ import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DashboardBalanceCard
 import com.plusemon.hisab.ui.components.EmptyStateView
+import com.plusemon.hisab.ui.components.MonthYearPickerBottomSheet
 import com.plusemon.hisab.ui.components.UpdateCard
 import com.plusemon.hisab.ui.components.UpdateDownloadingCard
 import com.plusemon.hisab.ui.components.UpdateReadyCard
@@ -115,7 +117,13 @@ fun DashboardScreen(
     val totalPayable = allDebts.filter { it.type == DebtType.I_OWE && !it.isSettled }.sumOf { it.remainingAmount }
     val totalShopOwed = shopCreditPurchases.filter { !it.isSettled }.sumOf { it.remainingAmount }
 
+    val selectedMonth by viewModel.selectedMonth.collectAsState()
+    val selectedMonthIncome by viewModel.selectedMonthIncome.collectAsState()
+    val selectedMonthExpense by viewModel.selectedMonthExpense.collectAsState()
+    val selectedMonthBalance by viewModel.selectedMonthBalance.collectAsState()
+
     var showNlpDialog by remember { mutableStateOf(false) }
+    var showMonthPickerSheet by remember { mutableStateOf(false) }
 
     if (showNlpDialog) {
         QuickEntryDialog(
@@ -125,10 +133,18 @@ fun DashboardScreen(
         )
     }
 
-    val (monthStart, monthEnd) = Formatters.getStartAndEndOfMonth(Formatters.getCurrentMonthYear())
-    val monthTransactions = transactions.filter { it.transaction.dateTimestamp in monthStart..monthEnd }
-    val monthIncome = monthTransactions.filter { it.transaction.type == TransactionType.INCOME }.sumOf { it.transaction.amount }
-    val monthExpense = monthTransactions.filter { it.transaction.type == TransactionType.EXPENSE }.sumOf { it.transaction.amount }
+    if (showMonthPickerSheet) {
+        MonthYearPickerBottomSheet(
+            selectedMonth = selectedMonth,
+            onMonthSelected = { newMonth ->
+                viewModel.setSelectedMonth(newMonth)
+                showMonthPickerSheet = false
+            },
+            onDismiss = { showMonthPickerSheet = false },
+            isBangla = isBn,
+            useBanglaDigits = useBnDigits
+        )
+    }
 
     Column(
         modifier = modifier
@@ -245,19 +261,66 @@ fun DashboardScreen(
             }
         }
 
-        // Redesigned Responsive Hero Balance & Monthly Overview Card
+        // Interactive Responsive Hero Balance & Monthly Overview Card
         DashboardBalanceCard(
-            totalBalance = totalBalance,
-            monthIncome = monthIncome,
-            monthExpense = monthExpense,
+            totalBalance = selectedMonthBalance,
+            monthIncome = selectedMonthIncome,
+            monthExpense = selectedMonthExpense,
             currencySymbol = currSymbol,
             useBanglaDigits = useBnDigits,
             hideBalances = hideBalances,
             isBangla = isBn,
-            currentMonthYear = Formatters.getCurrentMonthYear(),
+            currentMonthYear = selectedMonth.toMonthYearString(),
+            onMonthClick = { showMonthPickerSheet = true },
             onIncomeClick = onNavigateToTransactions,
             onExpenseClick = onNavigateToTransactions
         )
+
+        // Informative pill banner when viewing past/future month
+        if (!selectedMonth.isCurrent()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { viewModel.selectCurrentMonth() }
+                    .testTag("reset_month_filter_banner"),
+                color = Color(0xFF0F766E).copy(alpha = 0.15f),
+                border = BorderStroke(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.35f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            tint = Color(0xFF2DD4BF),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isBn) "${Formatters.formatMonthYear(selectedMonth.toMonthYearString(), true)} এর হিসাব"
+                                   else "Filtered: ${Formatters.formatMonthYear(selectedMonth.toMonthYearString(), false)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF2DD4BF),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Text(
+                        text = Localization.getString(Localization.Key.RESET_TO_THIS_MONTH, isBn),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF5EEAD4),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
 
         // Fast Action Buttons: [+ Expense], [+ Income], [⇄ Transfer]
         // Balanced tonal container styling with prominent icon & text colors

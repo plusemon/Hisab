@@ -191,4 +191,16 @@ object Formatters {
             }
         }
     }
+
+    fun getMonthName(month: Int, isBangla: Boolean = false): String {
+        val enMonths = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+        val bnMonths = listOf("জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর")
+        return if (isBangla) bnMonths.getOrElse(month - 1) { "" } else enMonths.getOrElse(month - 1) { "" }
+    }
+
+    fun getMonthShortName(month: Int, isBangla: Boolean = false): String {
+        val enShort = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        val bnShort = listOf("জানু", "ফেব্রু", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টে", "অক্টো", "নভে", "ডিসে")
+        return if (isBangla) bnShort.getOrElse(month - 1) { "" } else enShort.getOrElse(month - 1) { "" }
+    }
 }

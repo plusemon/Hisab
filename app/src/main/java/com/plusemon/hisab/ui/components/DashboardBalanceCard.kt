@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -58,10 +59,13 @@ fun DashboardBalanceCard(
     isBangla: Boolean,
     currentMonthYear: String = Formatters.getCurrentMonthYear(),
     onTogglePrivacy: (() -> Unit)? = null,
+    onMonthClick: (() -> Unit)? = null,
     onIncomeClick: (() -> Unit)? = null,
     onExpenseClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val isCurrentMonth = currentMonthYear == Formatters.getCurrentMonthYear()
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -102,41 +106,60 @@ fun DashboardBalanceCard(
                 .padding(20.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Top Row: Title + Month Chip
+                // Top Row: Title + Interactive Month Badge
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = Localization.getString(Localization.Key.TOTAL_BALANCE, isBangla),
+                        text = if (isCurrentMonth) {
+                            Localization.getString(Localization.Key.TOTAL_BALANCE, isBangla)
+                        } else {
+                            Localization.getString(Localization.Key.MONTH_NET_BALANCE, isBangla)
+                        },
                         style = MaterialTheme.typography.titleSmall,
                         color = Color(0xFF94A3B8),
                         fontWeight = FontWeight.Medium
                     )
 
-                    // Month Chip (dark slate tile)
+                    // Interactive Month Chip (clickable with tactile feedback & downward chevron)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
                         color = Color(0xFF1E293B),
-                        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.8f))
+                        border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.8f)),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .then(
+                                if (onMonthClick != null) {
+                                    Modifier.clickable(onClick = onMonthClick)
+                                } else Modifier
+                            )
+                            .testTag("hero_month_picker_badge")
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = Color(0xFF2DD4BF),
                                 modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = Formatters.formatMonthYear(currentMonthYear, isBangla),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFFE2E8F0),
                                 fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isBangla) "মাস নির্বাচন করুন" else "Select Month",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -166,41 +189,55 @@ fun DashboardBalanceCard(
                             .testTag("hero_total_balance_text")
                     )
 
-                    // High-Contrast Difference Badge: Crisp green on dark-green (or rose on dark-red)
+                    // Difference Badge: Crisp green on dark-green, rose on dark-red, or slate for zero
                     val netSavings = monthIncome - monthExpense
-                    if (monthIncome > 0 || monthExpense > 0) {
-                        val isPositive = netSavings >= 0
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isPositive) Color(0xFF14382A) else Color(0xFF4C1D24),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isPositive) Color(0xFF059669).copy(alpha = 0.40f) else Color(0xFFDC2626).copy(alpha = 0.40f)
-                            ),
-                            modifier = Modifier
-                                .padding(bottom = 4.dp, start = 8.dp)
-                                .testTag("hero_difference_pill")
+                    val hasTransactions = monthIncome > 0 || monthExpense > 0
+                    val isPositive = netSavings >= 0
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = when {
+                            !hasTransactions -> Color(0xFF1E293B)
+                            isPositive -> Color(0xFF14382A)
+                            else -> Color(0xFF4C1D24)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            when {
+                                !hasTransactions -> Color(0xFF334155).copy(alpha = 0.60f)
+                                isPositive -> Color(0xFF059669).copy(alpha = 0.40f)
+                                else -> Color(0xFFDC2626).copy(alpha = 0.40f)
+                            }
+                        ),
+                        modifier = Modifier
+                            .padding(bottom = 4.dp, start = 8.dp)
+                            .testTag("hero_difference_pill")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            if (hasTransactions) {
                                 Text(
                                     text = if (isPositive) "+ " else "- ",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171)
                                 )
-                                CurrencyAmountText(
-                                    amount = kotlin.math.abs(netSavings),
-                                    currencySymbol = currencySymbol,
-                                    useBanglaDigits = useBanglaDigits,
-                                    hideBalances = hideBalances,
-                                    color = if (isPositive) Color(0xFF4ADE80) else Color(0xFFF87171),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
+                            CurrencyAmountText(
+                                amount = if (hasTransactions) kotlin.math.abs(netSavings) else 0.0,
+                                currencySymbol = currencySymbol,
+                                useBanglaDigits = useBanglaDigits,
+                                hideBalances = hideBalances,
+                                color = when {
+                                    !hasTransactions -> Color(0xFF94A3B8)
+                                    isPositive -> Color(0xFF4ADE80)
+                                    else -> Color(0xFFF87171)
+                                },
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -223,6 +260,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isCurrentMonth = isCurrentMonth,
                                 onClick = onIncomeClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -232,6 +270,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isCurrentMonth = isCurrentMonth,
                                 onClick = onExpenseClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -248,6 +287,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isCurrentMonth = isCurrentMonth,
                                 onClick = onIncomeClick,
                                 modifier = Modifier.weight(1f)
                             )
@@ -257,6 +297,7 @@ fun DashboardBalanceCard(
                                 useBanglaDigits = useBanglaDigits,
                                 hideBalances = hideBalances,
                                 isBangla = isBangla,
+                                isCurrentMonth = isCurrentMonth,
                                 onClick = onExpenseClick,
                                 modifier = Modifier.weight(1f)
                             )
@@ -275,6 +316,7 @@ private fun IncomeSubCard(
     useBanglaDigits: Boolean,
     hideBalances: Boolean,
     isBangla: Boolean,
+    isCurrentMonth: Boolean = true,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -312,8 +354,13 @@ private fun IncomeSubCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
+                val incomeLabel = if (isCurrentMonth) {
+                    Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBangla)
+                } else {
+                    if (isBangla) "আয় (মাস)" else "Income (Month)"
+                }
                 Text(
-                    text = Localization.getString(Localization.Key.INCOME_THIS_MONTH, isBangla),
+                    text = incomeLabel,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Medium,
@@ -349,6 +396,7 @@ private fun ExpenseSubCard(
     useBanglaDigits: Boolean,
     hideBalances: Boolean,
     isBangla: Boolean,
+    isCurrentMonth: Boolean = true,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -386,8 +434,13 @@ private fun ExpenseSubCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
+                val expenseLabel = if (isCurrentMonth) {
+                    Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBangla)
+                } else {
+                    if (isBangla) "খরচ (মাস)" else "Expenses (Month)"
+                }
                 Text(
-                    text = Localization.getString(Localization.Key.EXPENSES_THIS_MONTH, isBangla),
+                    text = expenseLabel,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Medium,

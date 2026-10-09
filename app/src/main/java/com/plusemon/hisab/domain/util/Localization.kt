@@ -145,7 +145,13 @@ object Localization {
         INSIGHT_SPENT_LESS,
         INSIGHT_TOP_EXPENSE,
         INSIGHT_SAVINGS_GREAT,
-        INSIGHT_BUDGET_ALERT
+        INSIGHT_BUDGET_ALERT,
+        SELECT_MONTH,
+        THIS_MONTH,
+        LAST_MONTH,
+        CHANGE_YEAR,
+        RESET_TO_THIS_MONTH,
+        MONTH_NET_BALANCE
     }
 
     private val bnMap: Map<Key, String> = mapOf(
@@ -291,7 +297,13 @@ object Localization {
         Key.INSIGHT_SPENT_LESS to "অভিনন্দন! গত মাসের তুলনায় খরচ কমেছে।",
         Key.INSIGHT_TOP_EXPENSE to "এই মাসের প্রধান খরচের খাত:",
         Key.INSIGHT_SAVINGS_GREAT to "আপনি আপনার মাসিক সঞ্চয় লক্ষ্যের দিকে এগিয়ে যাচ্ছেন!",
-        Key.INSIGHT_BUDGET_ALERT to "বাজেট নিয়ন্ত্রণের জন্য জরুরি মনোযোগ প্রয়োজন।"
+        Key.INSIGHT_BUDGET_ALERT to "বাজেট নিয়ন্ত্রণের জন্য জরুরি মনোযোগ প্রয়োজন।",
+        Key.SELECT_MONTH to "মাস ও বছর নির্বাচন করুন",
+        Key.THIS_MONTH to "চলতি মাস",
+        Key.LAST_MONTH to "গত মাস",
+        Key.CHANGE_YEAR to "বছর পরিবর্তন করুন",
+        Key.RESET_TO_THIS_MONTH to "চলতি মাসে ফিরুন",
+        Key.MONTH_NET_BALANCE to "মাসিক নিট ব্যালেন্স"
     )
 
     private val enMap: Map<Key, String> = mapOf(
@@ -437,7 +449,13 @@ object Localization {
         Key.INSIGHT_SPENT_LESS to "Great job! You spent less than last month.",
         Key.INSIGHT_TOP_EXPENSE to "Top expense category this month:",
         Key.INSIGHT_SAVINGS_GREAT to "You are on track with your savings goals!",
-        Key.INSIGHT_BUDGET_ALERT to "Some categories need budget attention."
+        Key.INSIGHT_BUDGET_ALERT to "Some categories need budget attention.",
+        Key.SELECT_MONTH to "Select Month & Year",
+        Key.THIS_MONTH to "This Month",
+        Key.LAST_MONTH to "Last Month",
+        Key.CHANGE_YEAR to "Change Year",
+        Key.RESET_TO_THIS_MONTH to "Reset to This Month",
+        Key.MONTH_NET_BALANCE to "Month Net Balance"
     )
 
     fun getString(key: Key, isBangla: Boolean): String {

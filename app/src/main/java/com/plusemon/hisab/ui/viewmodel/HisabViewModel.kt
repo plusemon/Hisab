@@ -24,6 +24,7 @@ import com.plusemon.hisab.data.model.User
 import com.plusemon.hisab.data.model.UserAccount
 import com.plusemon.hisab.data.model.UserSettings
 import com.plusemon.hisab.data.model.Vendor
+import com.plusemon.hisab.data.model.YearMonth
 import com.plusemon.hisab.data.model.UpdateInfo
 import com.plusemon.hisab.data.repository.AuthRepository
 import com.plusemon.hisab.data.repository.AuthResult
@@ -195,6 +196,43 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     private val _insights = MutableStateFlow<List<String>>(emptyList())
     val insights = _insights.asStateFlow()
 
+    private val _selectedMonth = MutableStateFlow(YearMonth.now())
+    val selectedMonth: StateFlow<YearMonth> = _selectedMonth.asStateFlow()
+
+    private val _selectedMonthIncome = MutableStateFlow(0.0)
+    val selectedMonthIncome: StateFlow<Double> = _selectedMonthIncome.asStateFlow()
+
+    private val _selectedMonthExpense = MutableStateFlow(0.0)
+    val selectedMonthExpense: StateFlow<Double> = _selectedMonthExpense.asStateFlow()
+
+    private val _selectedMonthNetFlow = MutableStateFlow(0.0)
+    val selectedMonthNetFlow: StateFlow<Double> = _selectedMonthNetFlow.asStateFlow()
+
+    private val _selectedMonthBalance = MutableStateFlow(0.0)
+    val selectedMonthBalance: StateFlow<Double> = _selectedMonthBalance.asStateFlow()
+
+    private var currentBudgetJob: Job? = null
+
+    fun setSelectedMonth(yearMonth: YearMonth) {
+        _selectedMonth.value = yearMonth
+        val user = currentUser.value
+        if (user != null) {
+            refreshMonthlyData(user.id)
+        }
+    }
+
+    fun selectPreviousMonth() {
+        setSelectedMonth(_selectedMonth.value.minusMonths(1))
+    }
+
+    fun selectNextMonth() {
+        setSelectedMonth(_selectedMonth.value.plusMonths(1))
+    }
+
+    fun selectCurrentMonth() {
+        setSelectedMonth(YearMonth.now())
+    }
+
     private val _snackbarMessage = MutableSharedFlow<String>()
     val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
 
@@ -272,6 +310,8 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun cancelUserJobs() {
+        currentBudgetJob?.cancel()
+        currentBudgetJob = null
         activeDataJobs.forEach { it.cancel() }
         activeDataJobs.clear()
     }
@@ -297,6 +337,11 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         _shopCreditPayments.value = emptyList()
         _recurringRules.value = emptyList()
         _insights.value = emptyList()
+        _selectedMonth.value = YearMonth.now()
+        _selectedMonthIncome.value = 0.0
+        _selectedMonthExpense.value = 0.0
+        _selectedMonthNetFlow.value = 0.0
+        _selectedMonthBalance.value = 0.0
     }
 
     private fun observeUserData(userId: String) {
@@ -351,6 +396,11 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 _accountsWithBalances.value = activeList
                 _archivedAccountsWithBalances.value = archivedList
                 _totalBalance.value = total
+                val (mStart, mEnd) = Formatters.getStartAndEndOfMonth(_selectedMonth.value.toMonthYearString())
+                val hasMonthTx = _transactions.value.any { it.transaction.dateTimestamp in mStart..mEnd }
+                if (_selectedMonth.value.isCurrent()) {
+                    _selectedMonthBalance.value = if (hasMonthTx) total else 0.0
+                }
             }
         }
         activeDataJobs.add(accountsJob)
@@ -359,7 +409,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val txJob = viewModelScope.launch {
             hisabRepository.getTransactionsWithDetails(userId).collect { txList ->
                 _transactions.value = txList
-                calculateBudgetsAndInsights(userId, txList, currentMonthYear)
+                refreshMonthlyData(userId)
             }
         }
         activeDataJobs.add(txJob)
@@ -368,18 +418,10 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val catJob = viewModelScope.launch {
             hisabRepository.getActiveCategories(userId).collect { catList ->
                 _categories.value = catList
+                refreshMonthlyData(userId)
             }
         }
         activeDataJobs.add(catJob)
-
-        // 5. Budgets Flow
-        val budgetJob = viewModelScope.launch {
-            hisabRepository.getBudgetsForMonth(userId, currentMonthYear).collect { bList ->
-                _budgets.value = bList
-                calculateBudgetsAndInsights(userId, _transactions.value, currentMonthYear)
-            }
-        }
-        activeDataJobs.add(budgetJob)
 
         // 6. Savings Goals Flow
         val goalsJob = viewModelScope.launch {
@@ -446,6 +488,49 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         activeDataJobs.add(recurringJob)
     }
 
+    private fun refreshMonthlyData(userId: String) {
+        val yearMonth = _selectedMonth.value
+        val monthYearStr = yearMonth.toMonthYearString()
+        val (monthStart, monthEnd) = Formatters.getStartAndEndOfMonth(monthYearStr)
+
+        val txList = _transactions.value
+        val monthTransactions = txList.filter {
+            it.transaction.dateTimestamp in monthStart..monthEnd
+        }
+
+        val income = monthTransactions
+            .filter { it.transaction.type == TransactionType.INCOME }
+            .sumOf { it.transaction.amount }
+        val expense = monthTransactions
+            .filter { it.transaction.type == TransactionType.EXPENSE }
+            .sumOf { it.transaction.amount }
+        val netFlow = income - expense
+
+        _selectedMonthIncome.value = income
+        _selectedMonthExpense.value = expense
+        _selectedMonthNetFlow.value = netFlow
+
+        // Recalculate Total Balance / Net flow for the selected month:
+        // Handle empty state gracefully: if month has no transactions, show 0.0
+        // If current month and has transactions, show _totalBalance.value
+        // If other month, show netFlow
+        if (monthTransactions.isEmpty()) {
+            _selectedMonthBalance.value = 0.0
+        } else if (yearMonth.isCurrent()) {
+            _selectedMonthBalance.value = _totalBalance.value
+        } else {
+            _selectedMonthBalance.value = netFlow
+        }
+
+        currentBudgetJob?.cancel()
+        currentBudgetJob = viewModelScope.launch {
+            hisabRepository.getBudgetsForMonth(userId, monthYearStr).collect { bList ->
+                _budgets.value = bList
+                calculateBudgetsAndInsights(userId, txList, monthYearStr)
+            }
+        }
+    }
+
     private fun calculateBudgetsAndInsights(
         userId: String,
         txList: List<TransactionWithDetails>,
@@ -507,17 +592,22 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Generate dynamic insights
-        generateSmartInsights(txList, spentByCategory, totalMonthExpense)
+        generateSmartInsights(txList, spentByCategory, totalMonthExpense, monthYear)
     }
 
     private fun generateSmartInsights(
         txList: List<TransactionWithDetails>,
         currentMonthSpentByCat: Map<Long, Double>,
-        currentMonthTotalExpense: Double
+        currentMonthTotalExpense: Double,
+        monthYear: String
     ) {
         val isBn = _settings.value.language == "bn"
         val currSymbol = _settings.value.currencySymbol
+        val useBnDigits = _settings.value.numeralSystem == "bn"
         val insightList = mutableListOf<String>()
+
+        val isCurrentMonth = monthYear == Formatters.getCurrentMonthYear()
+        val formattedMonthName = Formatters.formatMonthYear(monthYear, isBn)
 
         // Find top expense category
         val topCategoryEntry = currentMonthSpentByCat.maxByOrNull { it.value }
@@ -525,39 +615,46 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             val topCat = _categories.value.firstOrNull { it.id == topCategoryEntry.key }
             if (topCat != null) {
                 val catName = topCat.localizedName(isBn)
-                val formattedAmount = Formatters.formatAmount(topCategoryEntry.value, currSymbol, _settings.value.numeralSystem == "bn")
+                val formattedAmount = Formatters.formatAmount(topCategoryEntry.value, currSymbol, useBnDigits)
                 if (isBn) {
-                    insightList.add("চলতি মাসে আপনার সর্বোচ্চ খরচ হয়েছে '$catName' খাতে ($formattedAmount)।")
+                    if (isCurrentMonth) {
+                        insightList.add("চলতি মাসে আপনার সর্বোচ্চ খরচ হয়েছে '$catName' খাতে ($formattedAmount)।")
+                    } else {
+                        insightList.add("$formattedMonthName মাসে আপনার সর্বোচ্চ খরচ হয়েছিল '$catName' খাতে ($formattedAmount)।")
+                    }
                 } else {
-                    insightList.add("Your highest expense this month was on '$catName' ($formattedAmount).")
+                    if (isCurrentMonth) {
+                        insightList.add("Your highest expense this month was on '$catName' ($formattedAmount).")
+                    } else {
+                        insightList.add("Your highest expense in $formattedMonthName was on '$catName' ($formattedAmount).")
+                    }
                 }
             }
         }
 
-        // Compare with last month
-        val cal = java.util.Calendar.getInstance()
-        cal.add(java.util.Calendar.MONTH, -1)
-        val lastMonthStr = String.format(java.util.Locale.US, "%04d-%02d", cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1)
-        val (lastStart, lastEnd) = Formatters.getStartAndEndOfMonth(lastMonthStr)
-        val lastMonthExpenses = txList.filter {
+        // Compare with prior month
+        val ym = YearMonth.fromString(monthYear)
+        val priorMonthStr = ym.minusMonths(1).toMonthYearString()
+        val (priorStart, priorEnd) = Formatters.getStartAndEndOfMonth(priorMonthStr)
+        val priorMonthExpenses = txList.filter {
             it.transaction.type == TransactionType.EXPENSE &&
-                    it.transaction.dateTimestamp in lastStart..lastEnd
+                    it.transaction.dateTimestamp in priorStart..priorEnd
         }.sumOf { it.transaction.amount }
 
-        if (lastMonthExpenses > 0 && currentMonthTotalExpense > 0) {
-            val diffPercent = ((currentMonthTotalExpense - lastMonthExpenses) / lastMonthExpenses * 100).toInt()
+        if (priorMonthExpenses > 0 && currentMonthTotalExpense > 0) {
+            val diffPercent = ((currentMonthTotalExpense - priorMonthExpenses) / priorMonthExpenses * 100).toInt()
             if (diffPercent < 0) {
                 val absDiff = Math.abs(diffPercent)
                 if (isBn) {
-                    insightList.add("অভিনন্দন! গত মাসের তুলনায় আপনার খরচ ${Formatters.toBanglaDigits(absDiff.toString())}% কমেছে।")
+                    insightList.add("অভিনন্দন! আগের মাসের তুলনায় আপনার খরচ ${Formatters.toBanglaDigits(absDiff.toString())}% কমেছে।")
                 } else {
-                    insightList.add("Great job! You spent $absDiff% less compared to last month.")
+                    insightList.add("Great job! Expenses were $absDiff% lower compared to the previous month.")
                 }
             } else if (diffPercent > 10) {
                 if (isBn) {
-                    insightList.add("সতর্কতা: গত মাসের তুলনায় খরচ ${Formatters.toBanglaDigits(diffPercent.toString())}% বৃদ্ধি পেয়েছে।")
+                    insightList.add("সতর্কতা: আগের মাসের তুলনায় খরচ ${Formatters.toBanglaDigits(diffPercent.toString())}% বৃদ্ধি পেয়েছে।")
                 } else {
-                    insightList.add("Notice: Expenses are $diffPercent% higher than last month.")
+                    insightList.add("Notice: Expenses were $diffPercent% higher than the previous month.")
                 }
             }
         }
@@ -569,6 +666,29 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                 insightList.add("সতর্কতা: ${Formatters.toBanglaDigits(exceededCount.toString())}টি ক্যাটাগরির বাজেট সীমা পার হয়েছে!")
             } else {
                 insightList.add("Warning: $exceededCount categories have exceeded their budget limits!")
+            }
+        }
+
+        // Graceful empty state when no expenses or no transactions
+        if (insightList.isEmpty()) {
+            val (monthStart, monthEnd) = Formatters.getStartAndEndOfMonth(monthYear)
+            val monthTransactions = txList.filter { it.transaction.dateTimestamp in monthStart..monthEnd }
+            if (monthTransactions.isEmpty()) {
+                if (isBn) {
+                    insightList.add("$formattedMonthName মাসে কোনো লেনদেন রেকর্ড করা হয়নি।")
+                } else {
+                    insightList.add("No transactions recorded for $formattedMonthName.")
+                }
+            } else {
+                val totalIncome = monthTransactions.filter { it.transaction.type == TransactionType.INCOME }.sumOf { it.transaction.amount }
+                if (totalIncome > 0 && currentMonthTotalExpense == 0.0) {
+                    val formattedIncome = Formatters.formatAmount(totalIncome, currSymbol, useBnDigits)
+                    if (isBn) {
+                        insightList.add("$formattedMonthName মাসে মোট আয় হয়েছে $formattedIncome এবং কোনো খরচ হয়নি।")
+                    } else {
+                        insightList.add("Total income for $formattedMonthName was $formattedIncome with zero expenses.")
+                    }
+                }
             }
         }
 
