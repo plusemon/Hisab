@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
@@ -44,6 +45,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -60,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -87,8 +91,23 @@ fun SettingsScreen(
     val currentUser by viewModel.currentUser.collectAsState()
 
     var showPinDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
+
+    // Theme Selection Dialog
+    if (showThemeDialog) {
+        ThemeSelectionDialog(
+            currentUseSystem = settings.useSystemTheme,
+            currentIsDark = settings.isDarkMode,
+            isBangla = isBn,
+            onDismiss = { showThemeDialog = false },
+            onSelectTheme = { useSystem, isDark ->
+                viewModel.setThemeMode(useSystem, isDark)
+                showThemeDialog = false
+            }
+        )
+    }
 
     // PIN Setup Dialog
     if (showPinDialog) {
@@ -186,36 +205,23 @@ fun SettingsScreen(
                         onClick = { viewModel.toggleNumeralSystem() }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    // Dark Mode Toggle Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.toggleDarkMode() }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (settings.isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = Localization.getString(Localization.Key.DARK_MODE, isBn),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Switch(
-                            checked = settings.isDarkMode,
-                            onCheckedChange = { viewModel.toggleDarkMode() }
-                        )
+                    // Theme Mode Row
+                    val currentThemeLabel = when {
+                        settings.useSystemTheme -> Localization.getString(Localization.Key.SYSTEM_DEFAULT, isBn)
+                        settings.isDarkMode -> Localization.getString(Localization.Key.DARK_MODE, isBn)
+                        else -> Localization.getString(Localization.Key.LIGHT_MODE, isBn)
                     }
+                    val currentThemeIcon = when {
+                        settings.useSystemTheme -> Icons.Default.BrightnessAuto
+                        settings.isDarkMode -> Icons.Default.DarkMode
+                        else -> Icons.Default.LightMode
+                    }
+                    SettingsRowItem(
+                        icon = currentThemeIcon,
+                        title = Localization.getString(Localization.Key.THEME, isBn),
+                        value = currentThemeLabel,
+                        onClick = { showThemeDialog = true }
+                    )
                 }
             }
 
@@ -482,4 +488,115 @@ fun SetPinDialog(
         }
     }
 }
+
+@Composable
+fun ThemeSelectionDialog(
+    currentUseSystem: Boolean,
+    currentIsDark: Boolean,
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSelectTheme: (useSystem: Boolean, isDark: Boolean) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = Localization.getString(Localization.Key.THEME, isBangla),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // System Default
+                ThemeOptionRow(
+                    title = Localization.getString(Localization.Key.SYSTEM_DEFAULT, isBangla),
+                    subtitle = if (isBangla) "সিস্টেম অনুযায়ী চলবে (ডিফল্ট)" else "Follows system appearance (Default)",
+                    icon = Icons.Default.BrightnessAuto,
+                    isSelected = currentUseSystem,
+                    onClick = { onSelectTheme(true, false) }
+                )
+
+                // Light Mode
+                ThemeOptionRow(
+                    title = Localization.getString(Localization.Key.LIGHT_MODE, isBangla),
+                    subtitle = if (isBangla) "উজ্জ্বল ও পরিষ্কার ইন্টারফেস" else "Light and clean look",
+                    icon = Icons.Default.LightMode,
+                    isSelected = !currentUseSystem && !currentIsDark,
+                    onClick = { onSelectTheme(false, false) }
+                )
+
+                // Dark Mode
+                ThemeOptionRow(
+                    title = Localization.getString(Localization.Key.DARK_MODE, isBangla),
+                    subtitle = if (isBangla) "রাতের বা ব্যাটারি সাশ্রয়ী থিম" else "Dark and battery-saving look",
+                    icon = Icons.Default.DarkMode,
+                    isSelected = !currentUseSystem && currentIsDark,
+                    onClick = { onSelectTheme(false, true) }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+            }
+        }
+    )
+}
+
+@Composable
+private fun ThemeOptionRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent,
+        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            RadioButton(
+                selected = isSelected,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+}
+
 

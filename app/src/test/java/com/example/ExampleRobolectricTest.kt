@@ -267,4 +267,51 @@ class ExampleRobolectricTest {
     assertTrue(incBn.isNotBlank())
     assertTrue(trfBn.isNotBlank())
   }
+
+  @Test
+  fun `theme settings persistence supports system default, light, and dark modes`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val prefs = context.getSharedPreferences("hisab_settings_prefs", Context.MODE_PRIVATE)
+
+    // Default state: system theme is enabled
+    assertTrue(prefs.getBoolean("use_system_theme", true))
+
+    // Set to dark mode explicitly
+    prefs.edit()
+      .putBoolean("use_system_theme", false)
+      .putBoolean("is_dark_mode", true)
+      .apply()
+
+    assertEquals(false, prefs.getBoolean("use_system_theme", true))
+    assertEquals(true, prefs.getBoolean("is_dark_mode", false))
+
+    // Set to light mode explicitly
+    prefs.edit()
+      .putBoolean("use_system_theme", false)
+      .putBoolean("is_dark_mode", false)
+      .apply()
+
+    assertEquals(false, prefs.getBoolean("use_system_theme", true))
+    assertEquals(false, prefs.getBoolean("is_dark_mode", true))
+
+    // Reset back to system default
+    prefs.edit()
+      .putBoolean("use_system_theme", true)
+      .apply()
+
+    assertEquals(true, prefs.getBoolean("use_system_theme", false))
+  }
+
+  @Test
+  fun `theme and language localization strings`() {
+    val themeBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.THEME, isBangla = true)
+    val themeEn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.THEME, isBangla = false)
+    assertEquals("থিম", themeBn)
+    assertEquals("Theme", themeEn)
+
+    val sysBn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.SYSTEM_DEFAULT, isBangla = true)
+    val sysEn = com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.SYSTEM_DEFAULT, isBangla = false)
+    assertEquals("সিস্টেম ডিফল্ট", sysBn)
+    assertEquals("System Default", sysEn)
+  }
 }

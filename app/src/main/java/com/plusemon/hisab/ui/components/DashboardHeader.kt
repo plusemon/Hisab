@@ -8,33 +8,36 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,13 +46,16 @@ import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.data.model.AppSyncStatus
 import com.plusemon.hisab.data.model.User
 import com.plusemon.hisab.data.model.UserSettings
+import com.plusemon.hisab.domain.util.Localization
 
 /**
- * Compact Dashboard Header displayed ONLY on the root tabs (Home/Dashboard).
+ * Modern Dashboard Header displayed on the root tabs (Home/Dashboard).
  * Features:
- * 1. Profile row: Avatar + Greeting & User Name on left;
- *    Clean real-time notification / sync indicator on right.
- * 2. Seamless statusBarsPadding with surface theme tokens.
+ * 1. Profile row: Avatar + Greeting & User Name with compact sync status.
+ * 2. Header actions:
+ *    - Privacy eye toggle (hide/show balances)
+ *    - Language Switch button styled as uploaded pill design [ 文A EN / বাং ]
+ *    - Theme Switcher with System Default (default), Light, and Dark modes.
  */
 @Composable
 fun DashboardHeader(
@@ -58,7 +64,9 @@ fun DashboardHeader(
     syncStatus: AppSyncStatus = AppSyncStatus.Synced(),
     onSyncClick: () -> Unit = {},
     onToggleDarkMode: () -> Unit = {},
+    onSetThemeMode: (useSystem: Boolean, isDark: Boolean) -> Unit = { _, _ -> },
     onToggleLanguage: () -> Unit = {},
+    onTogglePrivacy: (() -> Unit)? = null,
     onProfileClick: () -> Unit = {},
     onSettingsClick: () -> Unit = onProfileClick,
     modifier: Modifier = Modifier
@@ -73,6 +81,8 @@ fun DashboardHeader(
         else -> if (isBn) "শুভ রাত্রি" else "Good Night"
     }
 
+    var showThemeMenu by remember { mutableStateOf(false) }
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -83,15 +93,14 @@ fun DashboardHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            // Main Top Bar Row: Profile on Left, Clean Sync/Notification Indicator on Right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left side: User Avatar + Column (Greeting caption & User Name)
+                // Left side: User Avatar + Greeting & Name + Compact Sync Indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -108,21 +117,31 @@ fun DashboardHeader(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Column {
-                        // Small subtext: Greeting (caption style, muted text color)
-                        Text(
-                            text = greeting,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                        // Primary text: User Name (TitleMedium / 16-18sp, SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = greeting,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            RealTimeStatusBadge(
+                                status = syncStatus,
+                                isBn = isBn,
+                                onSyncClick = onSyncClick,
+                                compact = true
+                            )
+                        }
+
                         Text(
                             text = user?.displayName ?: (if (isBn) "স্বাগতম" else "Welcome"),
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.5.sp),
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -131,14 +150,223 @@ fun DashboardHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // Right side: Clean real-time notification / sync indicator (Settings, Language & Theme moved to More tab)
-                RealTimeStatusBadge(
-                    status = syncStatus,
-                    isBn = isBn,
-                    onSyncClick = onSyncClick
-                )
+                // Right side: Action Controls (Privacy Eye, Language Pill, Theme Switcher)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Optional Eye Toggle (Hide / Show balances)
+                    if (onTogglePrivacy != null) {
+                        Surface(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onTogglePrivacy() }
+                                .testTag("header_privacy_btn"),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            shadowElevation = 0.dp
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (settings.hideBalances) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (isBn) "ব্যালেন্স দেখান বা লুকান" else "Toggle Balance Visibility",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Language Switch Button (Pill Design matching uploaded screenshot: [ 文A EN / বাং ])
+                    Surface(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onToggleLanguage() }
+                            .testTag("header_language_btn"),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        shadowElevation = 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Translate,
+                                contentDescription = Localization.getString(Localization.Key.LANGUAGE, isBn),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (isBn) "বাং" else "EN",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Theme Switcher Button with System Default, Light & Dark options
+                    Box {
+                        val currentThemeIcon = when {
+                            settings.useSystemTheme -> Icons.Default.BrightnessAuto
+                            settings.isDarkMode -> Icons.Default.DarkMode
+                            else -> Icons.Default.LightMode
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { showThemeMenu = true }
+                                .testTag("header_theme_btn"),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            shadowElevation = 0.dp
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = currentThemeIcon,
+                                    contentDescription = Localization.getString(Localization.Key.THEME, isBn),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showThemeMenu,
+                            onDismissRequest = { showThemeMenu = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            // System Default (Default option)
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = Localization.getString(Localization.Key.SYSTEM_DEFAULT, isBn),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (settings.useSystemTheme) FontWeight.Bold else FontWeight.Normal,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = if (isBn) "সিস্টেম অনুযায়ী (ডিফল্ট)" else "Follows system (Default)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.BrightnessAuto,
+                                        contentDescription = null,
+                                        tint = if (settings.useSystemTheme) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (settings.useSystemTheme) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onSetThemeMode(true, false)
+                                    showThemeMenu = false
+                                }
+                            )
+
+                            // Light Mode
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = Localization.getString(Localization.Key.LIGHT_MODE, isBn),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (!settings.useSystemTheme && !settings.isDarkMode) FontWeight.Bold else FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LightMode,
+                                        contentDescription = null,
+                                        tint = if (!settings.useSystemTheme && !settings.isDarkMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (!settings.useSystemTheme && !settings.isDarkMode) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onSetThemeMode(false, false)
+                                    showThemeMenu = false
+                                }
+                            )
+
+                            // Dark Mode
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = Localization.getString(Localization.Key.DARK_MODE, isBn),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (!settings.useSystemTheme && settings.isDarkMode) FontWeight.Bold else FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DarkMode,
+                                        contentDescription = null,
+                                        tint = if (!settings.useSystemTheme && settings.isDarkMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (!settings.useSystemTheme && settings.isDarkMode) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onSetThemeMode(false, true)
+                                    showThemeMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

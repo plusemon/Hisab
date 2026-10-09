@@ -51,7 +51,8 @@ fun RealTimeStatusBadge(
     status: AppSyncStatus,
     isBn: Boolean,
     onSyncClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val visuals = when (status) {
         is AppSyncStatus.Saving -> BadgeVisuals(
@@ -119,8 +120,12 @@ fun RealTimeStatusBadge(
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "StatusBadgeAnim"
         ) { currentVisuals ->
+            val showText = !compact || currentVisuals.isLoading || status is AppSyncStatus.Error
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier.padding(
+                    horizontal = if (showText) 10.dp else 6.dp,
+                    vertical = 4.dp
+                ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (currentVisuals.isLoading) {
@@ -132,21 +137,23 @@ fun RealTimeStatusBadge(
                 } else {
                     Icon(
                         imageVector = currentVisuals.icon,
-                        contentDescription = null,
+                        contentDescription = currentVisuals.label,
                         tint = currentVisuals.contentColor,
                         modifier = Modifier.size(13.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                if (showText) {
+                    Spacer(modifier = Modifier.width(6.dp))
 
-                Text(
-                    text = currentVisuals.label,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = currentVisuals.contentColor,
-                    maxLines = 1
-                )
+                    Text(
+                        text = currentVisuals.label,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = currentVisuals.contentColor,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }

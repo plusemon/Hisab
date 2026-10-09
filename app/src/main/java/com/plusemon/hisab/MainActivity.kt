@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -88,7 +89,10 @@ class MainActivity : ComponentActivity() {
             val isAuthInitializing by viewModel.isAuthInitializing.collectAsState()
             val isLocked by viewModel.isAppLocked.collectAsState()
 
-            HisabTheme(darkTheme = settings.isDarkMode) {
+            val isSystemDark = isSystemInDarkTheme()
+            val isDarkTheme = if (settings.useSystemTheme) isSystemDark else settings.isDarkMode
+
+            HisabTheme(darkTheme = isDarkTheme) {
                 val snackbarHostState = remember { SnackbarHostState() }
 
                 LaunchedEffect(Unit) {
@@ -171,6 +175,7 @@ fun HisabMainApp(
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (pagerState.currentPage != 0) return Offset.Zero
                 // When scrolling up (finger moves up to browse downward), hide the button
                 if (available.y < -8f) {
                     if (isFabVisible) {
@@ -256,6 +261,10 @@ fun HisabMainApp(
                     settings = settings,
                     syncStatus = syncStatus,
                     onSyncClick = { viewModel.triggerManualSync() },
+                    onToggleDarkMode = { viewModel.toggleDarkMode() },
+                    onSetThemeMode = { useSystem, isDark -> viewModel.setThemeMode(useSystem, isDark) },
+                    onToggleLanguage = { viewModel.toggleLanguage() },
+                    onTogglePrivacy = { viewModel.toggleHideBalances() },
                     onProfileClick = { currentSubscreen = Screen.Settings.route }
                 )
             }
@@ -278,7 +287,7 @@ fun HisabMainApp(
             }
         },
         floatingActionButton = {
-            if (!isSubscreen) {
+            if (!isSubscreen && pagerState.currentPage == 0) {
                 AnimatedVisibility(
                     visible = isFabVisible,
                     enter = slideInVertically(initialOffsetY = { it * 2 }) + fadeIn(),

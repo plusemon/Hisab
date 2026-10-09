@@ -135,7 +135,8 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             userId = "",
             language = appPrefs.getString("language", "bn") ?: "bn",
             numeralSystem = appPrefs.getString("numeral_system", "bn") ?: "bn",
-            isDarkMode = appPrefs.getBoolean("is_dark_mode", false)
+            isDarkMode = appPrefs.getBoolean("is_dark_mode", false),
+            useSystemTheme = appPrefs.getBoolean("use_system_theme", true)
         )
     )
     val settings = _settings.asStateFlow()
@@ -318,7 +319,14 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         val savedLang = appPrefs.getString("language", "bn") ?: "bn"
         val savedNumeral = appPrefs.getString("numeral_system", "bn") ?: "bn"
         val savedDark = appPrefs.getBoolean("is_dark_mode", false)
-        _settings.value = UserSettings(userId = "", language = savedLang, numeralSystem = savedNumeral, isDarkMode = savedDark)
+        val savedSystemTheme = appPrefs.getBoolean("use_system_theme", true)
+        _settings.value = UserSettings(
+            userId = "",
+            language = savedLang,
+            numeralSystem = savedNumeral,
+            isDarkMode = savedDark,
+            useSystemTheme = savedSystemTheme
+        )
         _isAppLocked.value = false
         _accountsWithBalances.value = emptyList()
         _archivedAccountsWithBalances.value = emptyList()
@@ -352,8 +360,18 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
                     val savedLang = appPrefs.getString("language", userSettings.language) ?: userSettings.language
                     val savedNumeral = appPrefs.getString("numeral_system", userSettings.numeralSystem) ?: userSettings.numeralSystem
                     val savedDark = appPrefs.getBoolean("is_dark_mode", userSettings.isDarkMode)
-                    val activeSettings = if (userSettings.language != savedLang || userSettings.numeralSystem != savedNumeral || userSettings.isDarkMode != savedDark) {
-                        val synced = userSettings.copy(language = savedLang, numeralSystem = savedNumeral, isDarkMode = savedDark)
+                    val savedSystemTheme = appPrefs.getBoolean("use_system_theme", userSettings.useSystemTheme)
+                    val activeSettings = if (userSettings.language != savedLang ||
+                        userSettings.numeralSystem != savedNumeral ||
+                        userSettings.isDarkMode != savedDark ||
+                        userSettings.useSystemTheme != savedSystemTheme
+                    ) {
+                        val synced = userSettings.copy(
+                            language = savedLang,
+                            numeralSystem = savedNumeral,
+                            isDarkMode = savedDark,
+                            useSystemTheme = savedSystemTheme
+                        )
                         hisabRepository.updateSettings(synced)
                         synced
                     } else {
@@ -1438,17 +1456,26 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     // SETTINGS & SECURITY ACTIONS
     // -------------------------------------------------------------
 
+    fun setThemeMode(useSystem: Boolean, isDark: Boolean = false) {
+        val curr = _settings.value
+        val updated = curr.copy(useSystemTheme = useSystem, isDarkMode = isDark)
+        updateSettings(updated)
+    }
+
     fun toggleDarkMode() {
         val curr = _settings.value
-        val newDark = !curr.isDarkMode
-        val updated = curr.copy(isDarkMode = newDark)
+        val updated = when {
+            curr.useSystemTheme -> curr.copy(useSystemTheme = false, isDarkMode = true)
+            curr.isDarkMode -> curr.copy(useSystemTheme = false, isDarkMode = false)
+            else -> curr.copy(useSystemTheme = true, isDarkMode = false)
+        }
         updateSettings(updated)
     }
 
     fun setDarkMode(enabled: Boolean) {
         val curr = _settings.value
-        if (curr.isDarkMode == enabled) return
-        val updated = curr.copy(isDarkMode = enabled)
+        if (!curr.useSystemTheme && curr.isDarkMode == enabled) return
+        val updated = curr.copy(useSystemTheme = false, isDarkMode = enabled)
         updateSettings(updated)
     }
 
@@ -1461,25 +1488,15 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleLanguage() {
         val curr = _settings.value
         val newLang = if (curr.language == "bn") "en" else "bn"
-        appPrefs.edit().putString("language", newLang).apply()
-        val user = currentUser.value
-        val updated = curr.copy(language = newLang, userId = user?.id ?: "")
-        _settings.value = updated
-        viewModelScope.launch {
-            hisabRepository.updateSettings(updated)
-        }
+        val updated = curr.copy(language = newLang)
+        updateSettings(updated)
     }
 
     fun toggleNumeralSystem() {
         val curr = _settings.value
         val newNumeral = if (curr.numeralSystem == "bn") "en" else "bn"
-        appPrefs.edit().putString("numeral_system", newNumeral).apply()
-        val user = currentUser.value
-        val updated = curr.copy(numeralSystem = newNumeral, userId = user?.id ?: "")
-        _settings.value = updated
-        viewModelScope.launch {
-            hisabRepository.updateSettings(updated)
-        }
+        val updated = curr.copy(numeralSystem = newNumeral)
+        updateSettings(updated)
     }
 
     fun updateCurrency(currencyCode: String, symbol: String) {
@@ -1521,6 +1538,7 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
             .putString("language", updated.language)
             .putString("numeral_system", updated.numeralSystem)
             .putBoolean("is_dark_mode", updated.isDarkMode)
+            .putBoolean("use_system_theme", updated.useSystemTheme)
             .apply()
         _settings.value = updated
         val user = currentUser.value

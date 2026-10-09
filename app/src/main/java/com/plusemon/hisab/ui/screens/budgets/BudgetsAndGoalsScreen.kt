@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,18 +24,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Laptop
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,12 +55,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -56,6 +73,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -113,14 +131,14 @@ fun BudgetsAndGoalsScreen(
     val pagerState = rememberPagerState(initialPage = 0) { 2 }
     val coroutineScope = rememberCoroutineScope()
 
-    var showAddBudgetDialog by remember { mutableStateOf(false) }
-    var showAddGoalDialog by remember { mutableStateOf(false) }
+    var showAddBudgetBottomSheet by remember { mutableStateOf(false) }
+    var showAddGoalBottomSheet by remember { mutableStateOf(false) }
     var adjustingGoal by remember { mutableStateOf<SavingsGoal?>(null) }
     var isDepositMode by remember { mutableStateOf(true) }
     var goalToDelete by remember { mutableStateOf<SavingsGoal?>(null) }
     var budgetToDelete by remember { mutableStateOf<CategorySpendProgress?>(null) }
 
-    // Dialogs
+    // Dialogs & Bottom Sheets
     if (goalToDelete != null) {
         val target = goalToDelete!!
         val amountStr = Formatters.formatAmount(target.targetAmount, currSymbol, useBnDigits)
@@ -173,31 +191,33 @@ fun BudgetsAndGoalsScreen(
         )
     }
 
-    if (showAddBudgetDialog) {
-        AddEditBudgetDialog(
+    if (showAddBudgetBottomSheet) {
+        AddEditBudgetBottomSheet(
             categories = categories.filter { it.type == TransactionType.EXPENSE },
             isBangla = isBn,
-            onDismiss = { showAddBudgetDialog = false },
+            currencySymbol = currSymbol,
+            onDismiss = { showAddBudgetBottomSheet = false },
             onSave = { categoryId, limit ->
                 viewModel.saveBudget(categoryId, limit)
-                showAddBudgetDialog = false
+                showAddBudgetBottomSheet = false
             }
         )
     }
 
-    if (showAddGoalDialog) {
-        AddSavingsGoalDialog(
+    if (showAddGoalBottomSheet) {
+        AddSavingsGoalBottomSheet(
             isBangla = isBn,
-            onDismiss = { showAddGoalDialog = false },
+            currencySymbol = currSymbol,
+            onDismiss = { showAddGoalBottomSheet = false },
             onSave = { name, targetAmount, targetDate, note, colorHex, iconName ->
                 viewModel.addSavingsGoal(name, targetAmount, targetDate, note, colorHex, iconName)
-                showAddGoalDialog = false
+                showAddGoalBottomSheet = false
             }
         )
     }
 
     if (adjustingGoal != null) {
-        AdjustGoalSavingsDialog(
+        AdjustGoalSavingsBottomSheet(
             goal = adjustingGoal!!,
             isDeposit = isDepositMode,
             isBangla = isBn,
@@ -216,7 +236,7 @@ fun BudgetsAndGoalsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (pagerState.currentPage == 0) showAddBudgetDialog = true else showAddGoalDialog = true
+                    if (pagerState.currentPage == 0) showAddBudgetBottomSheet = true else showAddGoalBottomSheet = true
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -318,7 +338,7 @@ fun BudgetsAndGoalsScreen(
                                     title = Localization.getString(Localization.Key.EMPTY_BUDGETS, isBn),
                                     description = if (isBn) "মাসিক বাজেট নির্ধারণ করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to set up your monthly budget.",
                                     actionLabel = if (isBn) "+ বাজেট সেট করুন" else "+ Set Budget",
-                                    onActionClick = { showAddBudgetDialog = true }
+                                    onActionClick = { showAddBudgetBottomSheet = true }
                                 )
                             }
                         } else {
@@ -348,7 +368,7 @@ fun BudgetsAndGoalsScreen(
                                     title = Localization.getString(Localization.Key.EMPTY_GOALS, isBn),
                                     description = if (isBn) "সঞ্চয় লক্ষ্য সেট করতে নিচের + বাটনে চাপ দিন।" else "Tap the + button below to create a savings goal.",
                                     actionLabel = if (isBn) "+ সঞ্চয় লক্ষ্য যোগ করুন" else "+ Create Savings Goal",
-                                    onActionClick = { showAddGoalDialog = true }
+                                    onActionClick = { showAddGoalBottomSheet = true }
                                 )
                             }
                         } else {
@@ -754,82 +774,129 @@ fun SavingsGoalItemCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddEditBudgetDialog(
+fun AddEditBudgetBottomSheet(
     categories: List<Category>,
     isBangla: Boolean,
+    currencySymbol: String = "৳",
     onDismiss: () -> Unit,
     onSave: (categoryId: Long?, limit: Double) -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isOverall by remember { mutableStateOf(false) }
     var selectedCategoryId by remember { mutableStateOf<Long?>(categories.firstOrNull()?.id) }
     var limitText by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    val quickAmounts = listOf(1000, 2000, 5000, 10000, 20000)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.imePadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+                .navigationBarsPadding()
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    text = Localization.getString(Localization.Key.MONTHLY_BUDGET, isBangla),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { isOverall = false },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (!isOverall) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (!isOverall) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = { isOverall = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isOverall) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (isOverall) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isBangla) "মোট বাজেট" else "Overall Budget", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                if (!isOverall && categories.isNotEmpty()) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
                     Text(
-                        text = Localization.getString(Localization.Key.CATEGORY, isBangla),
-                        style = MaterialTheme.typography.labelMedium,
+                        text = Localization.getString(Localization.Key.MONTHLY_BUDGET, isBangla),
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isBangla) "মাসিক ব্যয়ের সর্বোচ্চ সীমা নির্ধারণ করুন" else "Set monthly spending limit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Budget Scope Tabs (Category vs Overall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = !isOverall,
+                    onClick = { isOverall = false },
+                    label = {
+                        Text(
+                            text = if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget",
+                            fontWeight = if (!isOverall) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+
+                FilterChip(
+                    selected = isOverall,
+                    onClick = { isOverall = true },
+                    label = {
+                        Text(
+                            text = if (isBangla) "মোট বাজেট" else "Overall Budget",
+                            fontWeight = if (isOverall) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category Selector if Category Budget
+            if (!isOverall) {
+                Text(
+                    text = Localization.getString(Localization.Key.CATEGORY, isBangla),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (categories.isNotEmpty()) {
                     var expanded by remember { mutableStateOf(false) }
-                    val currentCat = categories.firstOrNull { it.id == selectedCategoryId }
+                    val currentCat = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
 
                     ExposedDropdownMenuBox(
                         expanded = expanded,
                         onExpandedChange = { expanded = !expanded }
                     ) {
                         OutlinedTextField(
-                            value = currentCat?.localizedName(isBangla) ?: "",
+                            value = currentCat.localizedName(isBangla),
                             onValueChange = {},
                             readOnly = true,
+                            leadingIcon = {
+                                CategoryIconBadge(
+                                    iconName = currentCat.iconName,
+                                    colorHex = currentCat.colorHex,
+                                    size = 32.dp,
+                                    iconSize = 18.dp
+                                )
+                            },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
@@ -840,7 +907,15 @@ fun AddEditBudgetDialog(
                         ) {
                             categories.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text(cat.localizedName(isBangla)) },
+                                    text = { Text(cat.localizedName(isBangla), fontWeight = FontWeight.Medium) },
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = cat.iconName,
+                                            colorHex = cat.colorHex,
+                                            size = 28.dp,
+                                            iconSize = 16.dp
+                                        )
+                                    },
                                     onClick = {
                                         selectedCategoryId = cat.id
                                         expanded = false
@@ -849,120 +924,473 @@ fun AddEditBudgetDialog(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
+                } else {
+                    Text(
+                        text = if (isBangla) "কোনো ব্যয়ের ক্যাটাগরি পাওয়া যায়নি" else "No expense categories found",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
-                OutlinedTextField(
-                    value = limitText,
-                    onValueChange = { limitText = it },
-                    label = { Text(Localization.getString(Localization.Key.LIMIT, isBangla)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+            // Limit Amount Field
+            Text(
+                text = Localization.getString(Localization.Key.LIMIT, isBangla),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = limitText,
+                onValueChange = { limitText = it },
+                label = { Text(if (isBangla) "টাকার পরিমাণ" else "Limit Amount") },
+                prefix = {
+                    Text(
+                        text = "$currencySymbol ",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().testTag("budget_limit_input")
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Quick suggestion chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickAmounts.forEach { amount ->
+                    FilterChip(
+                        selected = limitText == amount.toString(),
+                        onClick = { limitText = amount.toString() },
+                        label = { Text("+$currencySymbol$amount", fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val limit = limitText.toDoubleOrNull() ?: 0.0
-                            if (limit > 0) {
-                                onSave(if (isOverall) null else selectedCategoryId, limit)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
-                    }
+                    Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                }
+
+                Button(
+                    onClick = {
+                        val limit = limitText.toDoubleOrNull() ?: 0.0
+                        if (limit > 0) {
+                            onSave(if (isOverall) null else selectedCategoryId, limit)
+                        }
+                    },
+                    enabled = (limitText.toDoubleOrNull() ?: 0.0) > 0,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).testTag("save_budget_button")
+                ) {
+                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
 
+// Backward compatibility forwarder
+@Composable
+fun AddEditBudgetDialog(
+    categories: List<Category>,
+    isBangla: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (categoryId: Long?, limit: Double) -> Unit
+) {
+    AddEditBudgetBottomSheet(
+        categories = categories,
+        isBangla = isBangla,
+        onDismiss = onDismiss,
+        onSave = onSave
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddSavingsGoalBottomSheet(
+    isBangla: Boolean,
+    currencySymbol: String = "৳",
+    onDismiss: () -> Unit,
+    onSave: (name: String, targetAmount: Double, targetDate: Long?, note: String, colorHex: String, iconName: String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var name by remember { mutableStateOf("") }
+    var targetAmountText by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf("#0D9488") }
+    var selectedIcon by remember { mutableStateOf("savings") }
+
+    val quickAmounts = listOf(5000, 10000, 20000, 50000, 100000)
+    val colorPresets = listOf("#0D9488", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EF4444")
+    val iconPresets = listOf("savings", "flight", "directions_car", "home", "phone_android", "laptop", "shopping_bag", "school")
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.imePadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+                .navigationBarsPadding()
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = Localization.getString(Localization.Key.SAVINGS_GOALS, isBangla),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (isBangla) "ভবিষ্যতের জন্য সঞ্চয় লক্ষ্য তৈরি করুন" else "Create a savings goal for your future",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Goal Name
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(Localization.getString(Localization.Key.GOAL_NAME, isBangla)) },
+                placeholder = { Text(if (isBangla) "যেমন: নতুন ফোন, ভ্রমণ, জরুরি তহবিল" else "e.g. New Phone, Travel, Emergency Fund") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().testTag("goal_name_input")
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Target Amount
+            OutlinedTextField(
+                value = targetAmountText,
+                onValueChange = { targetAmountText = it },
+                label = { Text(Localization.getString(Localization.Key.TARGET_AMOUNT, isBangla)) },
+                prefix = {
+                    Text(
+                        text = "$currencySymbol ",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().testTag("goal_amount_input")
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Quick amount chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickAmounts.forEach { amount ->
+                    FilterChip(
+                        selected = targetAmountText == amount.toString(),
+                        onClick = { targetAmountText = amount.toString() },
+                        label = { Text("$currencySymbol$amount", fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Icon Selection
+            Text(
+                text = if (isBangla) "আইকন নির্বাচন করুন" else "Select Icon",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                iconPresets.forEach { iconName ->
+                    val isSelected = selectedIcon == iconName
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) parseColorHex(selectedColor).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { selectedIcon = iconName },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = getIconByName(iconName),
+                            contentDescription = null,
+                            tint = if (isSelected) parseColorHex(selectedColor) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Color Selection
+            Text(
+                text = if (isBangla) "রঙ নির্বাচন করুন" else "Select Color",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                colorPresets.forEach { hex ->
+                    val isSelected = selectedColor == hex
+                    val col = parseColorHex(hex)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(col)
+                            .clickable { selectedColor = hex },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                }
+
+                Button(
+                    onClick = {
+                        val target = targetAmountText.toDoubleOrNull() ?: 0.0
+                        if (name.isNotBlank() && target > 0) {
+                            onSave(name.trim(), target, null, "", selectedColor, selectedIcon)
+                        }
+                    },
+                    enabled = name.isNotBlank() && (targetAmountText.toDoubleOrNull() ?: 0.0) > 0,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).testTag("save_goal_button")
+                ) {
+                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+// Backward compatibility forwarder
 @Composable
 fun AddSavingsGoalDialog(
     isBangla: Boolean,
     onDismiss: () -> Unit,
     onSave: (name: String, targetAmount: Double, targetDate: Long?, note: String, colorHex: String, iconName: String) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var targetAmountText by remember { mutableStateOf("") }
+    AddSavingsGoalBottomSheet(
+        isBangla = isBangla,
+        onDismiss = onDismiss,
+        onSave = onSave
+    )
+}
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdjustGoalSavingsBottomSheet(
+    goal: SavingsGoal,
+    isDeposit: Boolean,
+    isBangla: Boolean,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onConfirm: (amount: Double) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var amountText by remember { mutableStateOf("") }
+    val goalColor = parseColorHex(goal.colorHex)
+    val quickAddAmounts = listOf(500, 1000, 2000, 5000)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.imePadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+                .navigationBarsPadding()
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    text = Localization.getString(Localization.Key.SAVINGS_GOALS, isBangla),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(Localization.getString(Localization.Key.GOAL_NAME, isBangla)) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = targetAmountText,
-                    onValueChange = { targetAmountText = it },
-                    label = { Text(Localization.getString(Localization.Key.TARGET_AMOUNT, isBangla)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val target = targetAmountText.toDoubleOrNull() ?: 0.0
-                            if (name.isNotBlank() && target > 0) {
-                                onSave(name.trim(), target, null, "", "#0D9488", "savings")
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(goalColor.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = getIconByName(goal.iconName),
+                            contentDescription = null,
+                            tint = goalColor,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (isDeposit) "${Localization.getString(Localization.Key.DEPOSIT, isBangla)} (${goal.name})"
+                            else "${Localization.getString(Localization.Key.WITHDRAW, isBangla)} (${goal.name})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${if (isBangla) "বর্তমান সঞ্চয়:" else "Current Saved:"} $currencySymbol${goal.currentSavedAmount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { amountText = it },
+                label = { Text(Localization.getString(Localization.Key.AMOUNT, isBangla)) },
+                prefix = {
+                    Text(
+                        text = "$currencySymbol ",
+                        fontWeight = FontWeight.Bold,
+                        color = goalColor
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().testTag("adjust_goal_amount_input")
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickAddAmounts.forEach { amt ->
+                    FilterChip(
+                        selected = amountText == amt.toString(),
+                        onClick = { amountText = amt.toString() },
+                        label = { Text("+$currencySymbol$amt", fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                }
+
+                Button(
+                    onClick = {
+                        val amt = amountText.toDoubleOrNull() ?: 0.0
+                        if (amt > 0) {
+                            onConfirm(amt)
+                        }
+                    },
+                    enabled = (amountText.toDoubleOrNull() ?: 0.0) > 0,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = goalColor),
+                    modifier = Modifier.weight(1f).testTag("confirm_adjust_goal_button")
+                ) {
+                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
 
+// Backward compatibility forwarder
 @Composable
 fun AdjustGoalSavingsDialog(
     goal: SavingsGoal,
@@ -972,58 +1400,12 @@ fun AdjustGoalSavingsDialog(
     onDismiss: () -> Unit,
     onConfirm: (amount: Double) -> Unit
 ) {
-    var amountText by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    text = if (isDeposit) "${Localization.getString(Localization.Key.DEPOSIT, isBangla)} (${goal.name})"
-                    else "${Localization.getString(Localization.Key.WITHDRAW, isBangla)} (${goal.name})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text(Localization.getString(Localization.Key.AMOUNT, isBangla)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.getString(Localization.Key.CANCEL, isBangla))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val amt = amountText.toDoubleOrNull() ?: 0.0
-                            if (amt > 0) {
-                                onConfirm(amt)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
+    AdjustGoalSavingsBottomSheet(
+        goal = goal,
+        isDeposit = isDeposit,
+        isBangla = isBangla,
+        currencySymbol = currencySymbol,
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
+    )
 }
