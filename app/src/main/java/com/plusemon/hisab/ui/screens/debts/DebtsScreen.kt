@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -2403,7 +2404,7 @@ fun AddLoanEntryBottomSheet(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
                 TabRow(
@@ -2411,7 +2412,9 @@ fun AddLoanEntryBottomSheet(
                     containerColor = Color.Transparent,
                     indicator = { tabPositions ->
                         TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                            modifier = Modifier
+                                .tabIndicatorOffset(tabPositions[pagerState.currentPage])
+                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)),
                             color = if (pagerState.currentPage == 0) IncomeGreen else ExpenseRed,
                             height = 3.dp
                         )
@@ -2428,7 +2431,7 @@ fun AddLoanEntryBottomSheet(
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 6.dp)
+                                modifier = Modifier.padding(vertical = 8.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.TrendingDown,
@@ -2456,7 +2459,7 @@ fun AddLoanEntryBottomSheet(
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 6.dp)
+                                modifier = Modifier.padding(vertical = 8.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.TrendingUp,
@@ -2477,27 +2480,7 @@ fun AddLoanEntryBottomSheet(
                 }
             }
 
-            // Swipe hint label
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SwapHoriz,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isBangla) "👈 সোয়াইপ করে পরিবর্তন করুন 👉" else "👈 Swipe to switch between Gave & Took 👉",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Pager content with Horizontal Swipe
             HorizontalPager(
@@ -2515,96 +2498,20 @@ fun AddLoanEntryBottomSheet(
                         .padding(bottom = 32.dp)
                         .navigationBarsPadding()
                 ) {
-                    // Type Explanation Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = accentColor.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(accentColor.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isGave) Icons.Default.TrendingDown else Icons.Default.TrendingUp,
-                                    contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = if (isGave)
-                                        (if (isBangla) "টাকা ধার দিলেন (পাওনা)" else "Lent Money (Receivable)")
-                                    else
-                                        (if (isBangla) "টাকা ধার নিলেন (দেনা)" else "Borrowed Money (Payable)"),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = accentColor
-                                )
-                                Text(
-                                    text = if (isGave)
-                                        (if (isBangla) "ভবিষ্যতে এই টাকা আপনি ফেরত পাবেন。" else "You will receive this money back in the future.")
-                                    else
-                                        (if (isBangla) "ভবিষ্যতে এই টাকা আপনাকে ফেরত দিতে হবে।" else "You will need to repay this money in the future."),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Pick from Contacts button
-                    OutlinedButton(
-                        onClick = onPickContactClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag(if (isGave) "pick_contact_btn_gave" else "pick_contact_btn_took"),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContactPhone,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isBangla) "ফোনের কন্টাক্ট থেকে চুজ করুন" else "Pick from Phone Contacts",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    // Existing quick contact chips if available
+                    // Existing quick contact chips if available (integrated directly above person name)
                     if (contacts.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = if (isBangla) "সাম্প্রতিক কন্টাক্টসমূহ:" else "Recent Contacts:",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(end = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            contacts.take(8).forEach { contact ->
+                            items(contacts.take(8), key = { it.id }) { contact ->
                                 FilterChip(
                                     selected = name == contact.name,
                                     onClick = {
@@ -2620,9 +2527,8 @@ fun AddLoanEntryBottomSheet(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Person Name Input
                     OutlinedTextField(
@@ -2633,7 +2539,10 @@ fun AddLoanEntryBottomSheet(
                             Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         },
                         trailingIcon = {
-                            IconButton(onClick = onPickContactClick) {
+                            IconButton(
+                                onClick = onPickContactClick,
+                                modifier = Modifier.testTag(if (isGave) "pick_contact_btn_gave" else "pick_contact_btn_took")
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.ContactPhone,
                                     contentDescription = if (isBangla) "কন্টাক্ট থেকে চুজ করুন" else "Pick from Contacts",
@@ -2675,7 +2584,7 @@ fun AddLoanEntryBottomSheet(
                             .testTag("person_phone_input")
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Account Selector
                     if (accounts.isNotEmpty()) {
@@ -2688,13 +2597,12 @@ fun AddLoanEntryBottomSheet(
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(end = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            accounts.forEach { accWithBal ->
+                            items(accounts, key = { it.account.id }) { accWithBal ->
                                 val acc = accWithBal.account
                                 val isSelected = selectedAccountId == acc.id
                                 FilterChip(
@@ -2710,7 +2618,7 @@ fun AddLoanEntryBottomSheet(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
 
                     // Amount Input
@@ -2736,13 +2644,12 @@ fun AddLoanEntryBottomSheet(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Quick Amount Chips
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(end = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        quickAmounts.forEach { amt ->
+                        items(quickAmounts) { amt ->
                             FilterChip(
                                 selected = amountText == amt.toString(),
                                 onClick = { amountText = amt.toString() },
@@ -2751,7 +2658,7 @@ fun AddLoanEntryBottomSheet(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Note Input
                     OutlinedTextField(
@@ -2898,13 +2805,12 @@ fun RecordPaymentBottomSheet(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(end = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    accounts.forEach { accWithBal ->
+                    items(accounts, key = { it.account.id }) { accWithBal ->
                         val acc = accWithBal.account
                         FilterChip(
                             selected = selectedAccountId == acc.id,

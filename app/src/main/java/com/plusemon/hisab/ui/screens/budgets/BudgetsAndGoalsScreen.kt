@@ -70,6 +70,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -128,7 +130,7 @@ fun BudgetsAndGoalsScreen(
     val categories by viewModel.categories.collectAsState()
     val budgets by viewModel.budgets.collectAsState()
 
-    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
 
     var showAddBudgetBottomSheet by remember { mutableStateOf(false) }
@@ -255,7 +257,17 @@ fun BudgetsAndGoalsScreen(
             TabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                indicator = { tabPositions ->
+                    if (pagerState.currentPage < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             ) {
                 Tab(
                     selected = pagerState.currentPage == 0,
@@ -291,6 +303,7 @@ fun BudgetsAndGoalsScreen(
 
             HorizontalPager(
                 state = pagerState,
+                userScrollEnabled = true,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 if (page == 0) {
@@ -782,7 +795,9 @@ fun AddEditBudgetBottomSheet(
     onSave: (categoryId: Long?, limit: Double) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isOverall by remember { mutableStateOf(false) }
+    val sheetPagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedCategoryId by remember { mutableStateOf<Long?>(categories.firstOrNull()?.id) }
     var limitText by remember { mutableStateOf("") }
 
@@ -798,14 +813,13 @@ fun AddEditBudgetBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
                 .navigationBarsPadding()
         ) {
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -816,7 +830,7 @@ fun AddEditBudgetBottomSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isBangla) "মাসিক ব্যয়ের সর্বোচ্চ সীমা নির্ধারণ করুন" else "Set monthly spending limit",
+                        text = if (isBangla) "মোড পরিবর্তন করতে ডানে/বামে সোয়াইপ করুন" else "Swipe left / right to change modes",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -826,184 +840,342 @@ fun AddEditBudgetBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Budget Scope Tabs (Category vs Overall)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = !isOverall,
-                    onClick = { isOverall = false },
-                    label = {
-                        Text(
-                            text = if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget",
-                            fontWeight = if (!isOverall) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-
-                FilterChip(
-                    selected = isOverall,
-                    onClick = { isOverall = true },
-                    label = {
-                        Text(
-                            text = if (isBangla) "মোট বাজেট" else "Overall Budget",
-                            fontWeight = if (isOverall) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Category Selector if Category Budget
-            if (!isOverall) {
-                Text(
-                    text = Localization.getString(Localization.Key.CATEGORY, isBangla),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (categories.isNotEmpty()) {
-                    var expanded by remember { mutableStateOf(false) }
-                    val currentCat = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
-
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded }
-                    ) {
-                        OutlinedTextField(
-                            value = currentCat.localizedName(isBangla),
-                            onValueChange = {},
-                            readOnly = true,
-                            leadingIcon = {
-                                CategoryIconBadge(
-                                    iconName = currentCat.iconName,
-                                    colorHex = currentCat.colorHex,
-                                    size = 32.dp,
-                                    iconSize = 18.dp
-                                )
-                            },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            categories.forEach { cat ->
-                                DropdownMenuItem(
-                                    text = { Text(cat.localizedName(isBangla), fontWeight = FontWeight.Medium) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = cat.iconName,
-                                            colorHex = cat.colorHex,
-                                            size = 28.dp,
-                                            iconSize = 16.dp
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedCategoryId = cat.id
-                                        expanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Text(
-                        text = if (isBangla) "কোনো ব্যয়ের ক্যাটাগরি পাওয়া যায়নি" else "No expense categories found",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Limit Amount Field
-            Text(
-                text = Localization.getString(Localization.Key.LIMIT, isBangla),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = limitText,
-                onValueChange = { limitText = it },
-                label = { Text(if (isBangla) "টাকার পরিমাণ" else "Limit Amount") },
-                prefix = {
-                    Text(
-                        text = "$currencySymbol ",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth().testTag("budget_limit_input")
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Quick suggestion chips
+            // Segmented toggle control buttons connected dynamically to sheetPagerState
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                quickAmounts.forEach { amount ->
-                    FilterChip(
-                        selected = limitText == amount.toString(),
-                        onClick = { limitText = amount.toString() },
-                        label = { Text("+$currencySymbol$amount", fontSize = 12.sp) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(Localization.getString(Localization.Key.CANCEL, isBangla))
-                }
-
-                Button(
+                FilterChip(
+                    selected = sheetPagerState.currentPage == 0,
                     onClick = {
-                        val limit = limitText.toDoubleOrNull() ?: 0.0
-                        if (limit > 0) {
-                            onSave(if (isOverall) null else selectedCategoryId, limit)
+                        coroutineScope.launch {
+                            sheetPagerState.animateScrollToPage(0)
                         }
                     },
-                    enabled = (limitText.toDoubleOrNull() ?: 0.0) > 0,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).testTag("save_budget_button")
+                    label = {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (isBangla) "ক্যাটাগরি বাজেট" else "Category Budget",
+                                fontWeight = if (sheetPagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("budget_tab_category"),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+
+                FilterChip(
+                    selected = sheetPagerState.currentPage == 1,
+                    onClick = {
+                        coroutineScope.launch {
+                            sheetPagerState.animateScrollToPage(1)
+                        }
+                    },
+                    label = {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (isBangla) "মোট বাজেট" else "Overall Budget",
+                                fontWeight = if (sheetPagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("budget_tab_overall"),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Inner HorizontalPager with userScrollEnabled = true for swipe gestures
+            HorizontalPager(
+                state = sheetPagerState,
+                userScrollEnabled = true,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp)
                 ) {
-                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                    if (page == 0) {
+                        // Page 0: "ক্যাটাগরি বাজেট" form (Dropdown for category selection + amount input)
+                        Text(
+                            text = Localization.getString(Localization.Key.CATEGORY, isBangla),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (categories.isNotEmpty()) {
+                            var expanded by remember { mutableStateOf(false) }
+                            val currentCat = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
+
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                OutlinedTextField(
+                                    value = currentCat.localizedName(isBangla),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = currentCat.iconName,
+                                            colorHex = currentCat.colorHex,
+                                            size = 32.dp,
+                                            iconSize = 18.dp
+                                        )
+                                    },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    modifier = Modifier
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                        .fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    categories.forEach { cat ->
+                                        DropdownMenuItem(
+                                            text = { Text(cat.localizedName(isBangla), fontWeight = FontWeight.Medium) },
+                                            leadingIcon = {
+                                                CategoryIconBadge(
+                                                    iconName = cat.iconName,
+                                                    colorHex = cat.colorHex,
+                                                    size = 28.dp,
+                                                    iconSize = 16.dp
+                                                )
+                                            },
+                                            onClick = {
+                                                selectedCategoryId = cat.id
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = if (isBangla) "কোনো ব্যয়ের ক্যাটাগরি পাওয়া যায়নি" else "No expense categories found",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Limit Amount Field
+                        Text(
+                            text = Localization.getString(Localization.Key.LIMIT, isBangla),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = limitText,
+                            onValueChange = { limitText = it },
+                            label = { Text(if (isBangla) "টাকার পরিমাণ" else "Limit Amount") },
+                            prefix = {
+                                Text(
+                                    text = "$currencySymbol ",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("budget_limit_input")
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Quick suggestion chips
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            quickAmounts.forEach { amount ->
+                                FilterChip(
+                                    selected = limitText == amount.toString(),
+                                    onClick = { limitText = amount.toString() },
+                                    label = { Text("+$currencySymbol$amount", fontSize = 12.sp) }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Action Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                            }
+
+                            Button(
+                                onClick = {
+                                    val limit = limitText.toDoubleOrNull() ?: 0.0
+                                    if (limit > 0 && selectedCategoryId != null) {
+                                        onSave(selectedCategoryId, limit)
+                                    }
+                                },
+                                enabled = (limitText.toDoubleOrNull() ?: 0.0) > 0 && selectedCategoryId != null,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("save_budget_button")
+                            ) {
+                                Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        // Page 1: "মোট বাজেট" form (Overall budget limit amount input without category picker)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PieChart,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = if (isBangla) "সার্বিক মাসিক বাজেট" else "Overall Monthly Budget",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (isBangla)
+                                            "সম্পূর্ণ মাসের সমস্ত খরচের জন্য একটি সাধারণ সামগ্রিক বাজেট সীমা। কোনো ক্যাটাগরি নির্বাচনের প্রয়োজন নেই।"
+                                        else
+                                            "A unified spending limit across all categories combined for the month. No category selection required.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Limit Amount Field
+                        Text(
+                            text = Localization.getString(Localization.Key.LIMIT, isBangla),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = limitText,
+                            onValueChange = { limitText = it },
+                            label = { Text(if (isBangla) "টাকার পরিমাণ" else "Limit Amount") },
+                            prefix = {
+                                Text(
+                                    text = "$currencySymbol ",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("budget_limit_input")
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Quick suggestion chips
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            quickAmounts.forEach { amount ->
+                                FilterChip(
+                                    selected = limitText == amount.toString(),
+                                    onClick = { limitText = amount.toString() },
+                                    label = { Text("+$currencySymbol$amount", fontSize = 12.sp) }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Action Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(Localization.getString(Localization.Key.CANCEL, isBangla))
+                            }
+
+                            Button(
+                                onClick = {
+                                    val limit = limitText.toDoubleOrNull() ?: 0.0
+                                    if (limit > 0) {
+                                        onSave(null, limit)
+                                    }
+                                },
+                                enabled = (limitText.toDoubleOrNull() ?: 0.0) > 0,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("save_budget_button")
+                            ) {
+                                Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
