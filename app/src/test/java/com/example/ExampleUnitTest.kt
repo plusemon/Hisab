@@ -94,5 +94,13 @@ class ExampleUnitTest {
     assertEquals("Oct", com.plusemon.hisab.domain.util.Formatters.getMonthShortName(10, false))
     assertEquals("অক্টো", com.plusemon.hisab.domain.util.Formatters.getMonthShortName(10, true))
   }
+
+  @Test
+  fun testFilterLocalizationKeys() {
+    assertEquals("ফিল্টার করুন", com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.FILTER_TITLE, true))
+    assertEquals("Filter Transactions", com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.FILTER_TITLE, false))
+    assertEquals("সব মুছুন", com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.CLEAR_ALL, true))
+    assertEquals("Clear All", com.plusemon.hisab.domain.util.Localization.getString(com.plusemon.hisab.domain.util.Localization.Key.CLEAR_ALL, false))
+  }
 }
 

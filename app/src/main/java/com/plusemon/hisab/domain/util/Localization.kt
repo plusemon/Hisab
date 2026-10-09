@@ -148,7 +148,18 @@ object Localization {
         LAST_MONTH,
         CHANGE_YEAR,
         RESET_TO_THIS_MONTH,
-        MONTH_NET_BALANCE
+        MONTH_NET_BALANCE,
+        FILTER_TITLE,
+        FILTER_SUBTITLE,
+        RESET_FILTERS,
+        APPLY_FILTERS,
+        TIME_PERIOD,
+        TRANSACTION_TYPE,
+        CLEAR_ALL,
+        THIS_YEAR,
+        ALL_TIME,
+        ALL_ACCOUNTS,
+        NO_MATCHING_TRANSACTIONS
     }
 
     private val bnMap: Map<Key, String> = mapOf(
@@ -297,7 +308,18 @@ object Localization {
         Key.LAST_MONTH to "গত মাস",
         Key.CHANGE_YEAR to "বছর পরিবর্তন করুন",
         Key.RESET_TO_THIS_MONTH to "চলতি মাসে ফিরুন",
-        Key.MONTH_NET_BALANCE to "মাসিক নিট ব্যালেন্স"
+        Key.MONTH_NET_BALANCE to "মাসিক নিট ব্যালেন্স",
+        Key.FILTER_TITLE to "ফিল্টার করুন",
+        Key.FILTER_SUBTITLE to "পছন্দমতো লেনদেন খুঁজে নিন",
+        Key.RESET_FILTERS to "রিসেট করুন",
+        Key.APPLY_FILTERS to "প্রয়োগ করুন",
+        Key.TIME_PERIOD to "সময়কাল",
+        Key.TRANSACTION_TYPE to "লেনদেনের ধরন",
+        Key.CLEAR_ALL to "সব মুছুন",
+        Key.THIS_YEAR to "এই বছর",
+        Key.ALL_TIME to "সব সময়",
+        Key.ALL_ACCOUNTS to "সব অ্যাকাউন্ট",
+        Key.NO_MATCHING_TRANSACTIONS to "কোনো লেনদেন পাওয়া যায়নি"
     )
 
     private val enMap: Map<Key, String> = mapOf(
@@ -446,7 +468,18 @@ object Localization {
         Key.LAST_MONTH to "Last Month",
         Key.CHANGE_YEAR to "Change Year",
         Key.RESET_TO_THIS_MONTH to "Reset to This Month",
-        Key.MONTH_NET_BALANCE to "Month Net Balance"
+        Key.MONTH_NET_BALANCE to "Month Net Balance",
+        Key.FILTER_TITLE to "Filter Transactions",
+        Key.FILTER_SUBTITLE to "Refine transaction list",
+        Key.RESET_FILTERS to "Reset All",
+        Key.APPLY_FILTERS to "Apply Filters",
+        Key.TIME_PERIOD to "Time Period",
+        Key.TRANSACTION_TYPE to "Transaction Type",
+        Key.CLEAR_ALL to "Clear All",
+        Key.THIS_YEAR to "This Year",
+        Key.ALL_TIME to "All Time",
+        Key.ALL_ACCOUNTS to "All Accounts",
+        Key.NO_MATCHING_TRANSACTIONS to "No matching transactions"
     )
 
     fun getString(key: Key, isBangla: Boolean): String {

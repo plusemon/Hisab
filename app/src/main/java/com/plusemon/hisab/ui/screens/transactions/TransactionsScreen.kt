@@ -27,10 +27,12 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.plusemon.hisab.data.model.TransactionType
@@ -54,6 +57,7 @@ import com.plusemon.hisab.ui.components.CategoryIconBadge
 import com.plusemon.hisab.ui.components.CurrencyAmountText
 import com.plusemon.hisab.ui.components.DeleteConfirmationDialog
 import com.plusemon.hisab.ui.components.EmptyStateView
+import com.plusemon.hisab.ui.components.TransactionFilterBottomSheet
 import com.plusemon.hisab.ui.components.getIconByName
 import com.plusemon.hisab.ui.components.parseColorHex
 import com.plusemon.hisab.ui.screens.dashboard.TransactionRowItem
@@ -83,7 +87,13 @@ fun TransactionsScreen(
     var selectedTypeFilter by remember { mutableStateOf<TransactionType?>(null) }
     var selectedPeriodFilter by remember { mutableStateOf("THIS_MONTH") }
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
+    var showFilterSheet by remember { mutableStateOf(false) }
     var txToDelete by remember { mutableStateOf<TransactionWithDetails?>(null) }
+
+    val hasActiveFilters = selectedTypeFilter != null || selectedAccountId != null || selectedPeriodFilter != "THIS_MONTH"
+    val activeFilterCount = (if (selectedTypeFilter != null) 1 else 0) +
+            (if (selectedAccountId != null) 1 else 0) +
+            (if (selectedPeriodFilter != "THIS_MONTH") 1 else 0)
 
     if (txToDelete != null) {
         val target = txToDelete!!
@@ -134,6 +144,51 @@ fun TransactionsScreen(
         }
     }
 
+    if (showFilterSheet) {
+        TransactionFilterBottomSheet(
+            initialPeriod = selectedPeriodFilter,
+            initialType = selectedTypeFilter,
+            initialAccountId = selectedAccountId,
+            accounts = accounts,
+            isBangla = isBn,
+            useBanglaDigits = useBnDigits,
+            calculateMatchCount = { p, t, a ->
+                val (start, end) = Formatters.getStartAndEndForPeriod(p)
+                allTransactions.count { item ->
+                    val matchesPeriod = if (p == "ALL") true else item.transaction.dateTimestamp in start..end
+                    val matchesType = t == null || item.transaction.type == t
+                    val matchesAccount = a == null ||
+                            item.transaction.accountId == a ||
+                            (item.transaction.type == TransactionType.TRANSFER && item.transaction.toAccountId == a)
+                    val matchesSearch = if (searchQuery.isBlank()) true else {
+                        val q = searchQuery.lowercase()
+                        item.transaction.note.lowercase().contains(q) ||
+                                (item.category?.nameBn?.lowercase()?.contains(q) == true) ||
+                                (item.category?.nameEn?.lowercase()?.contains(q) == true) ||
+                                item.account.name.lowercase().contains(q) ||
+                                (item.toAccount?.name?.lowercase()?.contains(q) == true) ||
+                                item.transaction.amount.toString().contains(q)
+                    }
+                    matchesPeriod && matchesType && matchesAccount && matchesSearch
+                }
+            },
+            onApply = { p, t, a ->
+                selectedPeriodFilter = p
+                selectedTypeFilter = t
+                selectedAccountId = a
+                showFilterSheet = false
+            },
+            onReset = {
+                selectedPeriodFilter = "THIS_MONTH"
+                selectedTypeFilter = null
+                selectedAccountId = null
+            },
+            onDismiss = {
+                showFilterSheet = false
+            }
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -153,160 +208,217 @@ fun TransactionsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search Input
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = {
-                    Text(Localization.getString(Localization.Key.SEARCH_PLACEHOLDER, isBn), fontSize = 14.sp)
-                },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null)
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+            // Search & Filter Row
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .testTag("tx_search_input")
-            )
-
-            // Period Filter Chips
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val periods = listOf(
-                    Pair("THIS_MONTH", if (isBn) "এই মাস" else "This Month"),
-                    Pair("LAST_MONTH", if (isBn) "গত মাস" else "Last Month"),
-                    Pair("THIS_YEAR", if (isBn) "এই বছর" else "This Year"),
-                    Pair("ALL", if (isBn) "সব সময়" else "All Time")
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = Localization.getString(Localization.Key.SEARCH_PLACEHOLDER, isBn),
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("tx_search_input")
                 )
 
-                items(periods) { (key, label) ->
-                    FilterChip(
-                        selected = selectedPeriodFilter == key,
-                        onClick = { selectedPeriodFilter = key },
-                        label = { Text(label, fontSize = 12.sp) }
-                    )
-                }
-            }
-
-            // Type Filter Chips
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = selectedTypeFilter == null,
-                        onClick = { selectedTypeFilter = null },
-                        label = { Text(Localization.getString(Localization.Key.ALL, isBn), fontSize = 12.sp) }
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = selectedTypeFilter == TransactionType.EXPENSE,
-                        onClick = {
-                            selectedTypeFilter = if (selectedTypeFilter == TransactionType.EXPENSE) null else TransactionType.EXPENSE
-                        },
-                        label = {
-                            Text(
-                                Localization.getString(Localization.Key.EXPENSE_SHORT, isBn),
-                                color = ExpenseRed,
-                                fontSize = 12.sp
-                            )
+                // Filter Trigger Button with active Badge
+                Surface(
+                    onClick = { showFilterSheet = true },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (hasActiveFilters) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        if (hasActiveFilters) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         }
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = selectedTypeFilter == TransactionType.INCOME,
-                        onClick = {
-                            selectedTypeFilter = if (selectedTypeFilter == TransactionType.INCOME) null else TransactionType.INCOME
-                        },
-                        label = {
-                            Text(
-                                Localization.getString(Localization.Key.INCOME_SHORT, isBn),
-                                color = IncomeGreen,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = selectedTypeFilter == TransactionType.TRANSFER,
-                        onClick = {
-                            selectedTypeFilter = if (selectedTypeFilter == TransactionType.TRANSFER) null else TransactionType.TRANSFER
-                        },
-                        label = {
-                            Text(
-                                Localization.getString(Localization.Key.TRANSFER_SHORT, isBn),
-                                color = TransferBlue,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                }
-            }
-
-            // Account Filter Chips (Feature 1)
-            if (accounts.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    ),
+                    modifier = Modifier
+                        .size(52.dp)
+                        .testTag("open_filter_button")
                 ) {
-                    item {
-                        FilterChip(
-                            selected = selectedAccountId == null,
-                            onClick = { selectedAccountId = null },
-                            label = {
-                                Text(
-                                    text = if (isBn) "সব অ্যাকাউন্ট" else "All Accounts",
-                                    fontSize = 12.sp
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.AccountBalanceWallet,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            },
-                            modifier = Modifier.testTag("filter_account_all")
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (activeFilterCount > 0) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ) {
+                                        Text(
+                                            text = if (useBnDigits) Formatters.toBanglaDigits(activeFilterCount.toString()) else activeFilterCount.toString(),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = if (isBn) "ফিল্টার" else "Filter",
+                                tint = if (hasActiveFilters) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Compact Active Filter Pills (Shown only when non-default filters are active)
+            AnimatedVisibility(
+                visible = hasActiveFilters,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.testTag("active_filters_row")
+                ) {
+                    // Period Chip (if changed from default THIS_MONTH)
+                    if (selectedPeriodFilter != "THIS_MONTH") {
+                        val periodLabel = when (selectedPeriodFilter) {
+                            "LAST_MONTH" -> if (isBn) "গত মাস" else "Last Month"
+                            "THIS_YEAR" -> if (isBn) "এই বছর" else "This Year"
+                            "ALL" -> if (isBn) "সব সময়" else "All Time"
+                            else -> selectedPeriodFilter
+                        }
+                        item(key = "active_period") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { showFilterSheet = true },
+                                label = { Text(periodLabel, fontSize = 12.sp) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { selectedPeriodFilter = "THIS_MONTH" }
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.testTag("active_filter_period")
+                            )
+                        }
                     }
 
-                    items(accounts, key = { it.account.id }) { accWithBal ->
-                        val acc = accWithBal.account
-                        val isSelected = selectedAccountId == acc.id
-                        FilterChip(
-                            selected = isSelected,
+                    // Type Chip (if selected)
+                    if (selectedTypeFilter != null) {
+                        val typeLabel = when (selectedTypeFilter) {
+                            TransactionType.EXPENSE -> Localization.getString(Localization.Key.EXPENSE_SHORT, isBn)
+                            TransactionType.INCOME -> Localization.getString(Localization.Key.INCOME_SHORT, isBn)
+                            TransactionType.TRANSFER -> Localization.getString(Localization.Key.TRANSFER_SHORT, isBn)
+                            null -> ""
+                        }
+                        item(key = "active_type") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { showFilterSheet = true },
+                                label = { Text(typeLabel, fontSize = 12.sp) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { selectedTypeFilter = null }
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.testTag("active_filter_type")
+                            )
+                        }
+                    }
+
+                    // Account Chip (if selected)
+                    if (selectedAccountId != null) {
+                        val accountName = accounts.find { it.account.id == selectedAccountId }?.account?.name ?: (if (isBn) "অ্যাকাউন্ট" else "Account")
+                        item(key = "active_account") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { showFilterSheet = true },
+                                label = { Text(accountName, fontSize = 12.sp) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { selectedAccountId = null }
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.testTag("active_filter_account")
+                            )
+                        }
+                    }
+
+                    // Clear All Button
+                    item(key = "clear_all_button") {
+                        TextButton(
                             onClick = {
-                                selectedAccountId = if (isSelected) null else acc.id
+                                selectedPeriodFilter = "THIS_MONTH"
+                                selectedTypeFilter = null
+                                selectedAccountId = null
                             },
-                            label = {
-                                Text(acc.name, fontSize = 12.sp)
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = getIconByName(acc.iconName),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                    tint = parseColorHex(acc.colorHex)
-                                )
-                            },
-                            modifier = Modifier.testTag("filter_account_${acc.id}")
-                        )
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier
+                                .height(32.dp)
+                                .testTag("clear_all_filters_btn")
+                        ) {
+                            Text(
+                                text = Localization.getString(Localization.Key.CLEAR_ALL, isBn),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
