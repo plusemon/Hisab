@@ -310,6 +310,17 @@ class HisabRepository(
         vendorDao.insertVendor(vendor)
     }
 
+    suspend fun updateVendor(vendor: Vendor) = withContext(Dispatchers.IO) {
+        vendorDao.updateVendor(vendor)
+    }
+
+    suspend fun updateVendorPhone(vendorId: Long, userId: String, phone: String) = withContext(Dispatchers.IO) {
+        val existing = vendorDao.getVendorById(vendorId, userId)
+        if (existing != null) {
+            vendorDao.updateVendor(existing.copy(phone = phone))
+        }
+    }
+
     suspend fun archiveVendor(vendorId: Long, userId: String, isArchived: Boolean) = withContext(Dispatchers.IO) {
         vendorDao.archiveVendor(vendorId, userId, isArchived)
     }
@@ -329,6 +340,11 @@ class HisabRepository(
         if (vId == 0L && vendorName.isNotBlank()) {
             val newVendor = Vendor(userId = userId, name = vendorName, phone = phone, locationNote = locationNote, categoryTag = categoryTag)
             vId = vendorDao.insertVendor(newVendor)
+        } else if (vId > 0L && phone.isNotBlank()) {
+            val existing = vendorDao.getVendorById(vId, userId)
+            if (existing != null && existing.phone != phone) {
+                vendorDao.updateVendor(existing.copy(phone = phone))
+            }
         }
         val purchase = ShopCreditPurchase(
             userId = userId,

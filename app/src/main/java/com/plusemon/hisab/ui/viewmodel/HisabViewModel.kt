@@ -1280,6 +1280,22 @@ class HisabViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateVendor(vendor: Vendor) {
+        val user = currentUser.value ?: return
+        viewModelScope.launch {
+            hisabRepository.updateVendor(vendor.copy(userId = user.id))
+            _snackbarMessage.emit(if (_settings.value.language == "bn") "দোকানের তথ্য আপডেট করা হয়েছে" else "Shop information updated")
+        }
+    }
+
+    fun updateVendorPhone(vendorId: Long, phone: String) {
+        val user = currentUser.value ?: return
+        viewModelScope.launch {
+            hisabRepository.updateVendorPhone(vendorId, user.id, phone)
+            _snackbarMessage.emit(if (_settings.value.language == "bn") "মোবাইল নম্বর আপডেট করা হয়েছে" else "Phone number updated")
+        }
+    }
+
     fun archiveVendor(vendorId: Long, isArchived: Boolean) {
         val user = currentUser.value ?: return
         viewModelScope.launch {
