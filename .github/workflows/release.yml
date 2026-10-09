@@ -3,6 +3,8 @@ name: Release Android APK
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -19,7 +21,11 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          VERSION="v1.0.${{ github.run_number }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="v1.0.${{ github.run_number }}"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 17
@@ -48,18 +54,23 @@ jobs:
           fi
 
       - name: Print release SHA-1 fingerprint
-        run: keytool -list -v -keystore hisab-release.keystore -alias hisab -storepass "${{ secrets.STORE_PASSWORD }}" -keypass "${{ secrets.KEY_PASSWORD }}" | grep "SHA1:"
+        run: |
+          if [ -f hisab-release.keystore ]; then
+            keytool -list -v -keystore hisab-release.keystore -alias hisab -storepass "${{ secrets.STORE_PASSWORD }}" -keypass "${{ secrets.KEY_PASSWORD }}" | grep "SHA1:" || true
+          fi
 
       - name: Write google-services.json
         run: |
           mkdir -p app
           SECRET_VAL="${{ secrets.GOOGLE_SERVICES_JSON }}"
-          if echo -n "$SECRET_VAL" | base64 --decode > app/google-services.json 2>/dev/null; then
-            if ! grep -q "{" app/google-services.json; then
+          if [ -n "$SECRET_VAL" ]; then
+            if echo -n "$SECRET_VAL" | base64 --decode > app/google-services.json 2>/dev/null; then
+              if ! grep -q "{" app/google-services.json; then
+                echo -n "$SECRET_VAL" > app/google-services.json
+              fi
+            else
               echo -n "$SECRET_VAL" > app/google-services.json
             fi
-          else
-            echo -n "$SECRET_VAL" > app/google-services.json
           fi
 
       - name: Grant execute permission to gradlew
@@ -94,4 +105,40 @@ jobs:
           name: ${{ steps.version.outputs.version }}
           files: build-outputs/hisab-${{ steps.version.outputs.version }}.apk
           generate_release_notes: true
-          prerelease: true
+          prerelease: false
+
+      - name: Prepare Telegram Notification Content
+        id: telegram_msg
+        if: success()
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            SUMMARY="${{ github.event.release.name || github.event.release.tag_name }}"
+          else
+            SUMMARY=$(git log -1 --pretty=format:'%s' 2>/dev/null || echo "Release build triggered")
+          fi
+          # Strip Markdown formatting characters that could conflict with Telegram parser
+          CLEAN_SUMMARY=$(echo "$SUMMARY" | tr -d '`*_[\]()')
+          if [ -z "$CLEAN_SUMMARY" ]; then
+            CLEAN_SUMMARY="New Android release ready"
+          fi
+          echo "summary=$CLEAN_SUMMARY" >> "$GITHUB_OUTPUT"
+
+      - name: Send Rich Telegram Notification
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            🚀 *New Release Published!*
+
+            📦 *Repository:* [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})
+            🏷 *Tag / Version:* `${{ steps.version.outputs.version }}`
+            👤 *Author:* `${{ github.actor }}`
+            📝 *Commit / Title:* ${{ steps.telegram_msg.outputs.summary }}
+
+            📋 *Release Notes:* [View Changelog](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})
+            📥 *Direct Download APK:* [Download hisab-${{ steps.version.outputs.version }}.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/hisab-${{ steps.version.outputs.version }}.apk)
+            🔗 *GitHub Release:* [View Release](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})
