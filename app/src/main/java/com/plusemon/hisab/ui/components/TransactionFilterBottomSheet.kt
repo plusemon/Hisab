@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -107,6 +108,7 @@ fun TransactionFilterBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
@@ -114,7 +116,7 @@ fun TransactionFilterBottomSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -140,7 +142,7 @@ fun TransactionFilterBottomSheet(
                     Column {
                         Text(
                             text = Localization.getString(Localization.Key.FILTER_TITLE, isBangla),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -178,7 +180,9 @@ fun TransactionFilterBottomSheet(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("filter_close_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -194,8 +198,8 @@ fun TransactionFilterBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Section 1: Time Period
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -490,7 +494,7 @@ fun TransactionFilterBottomSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Button(
                     onClick = {
@@ -498,12 +502,12 @@ fun TransactionFilterBottomSheet(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                         .testTag("filter_apply_button"),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        contentColor = Color.White
                     )
                 ) {
                     val countDisplay = if (useBanglaDigits) Formatters.toBanglaDigits(matchCount.toString()) else matchCount.toString()
@@ -515,7 +519,8 @@ fun TransactionFilterBottomSheet(
                     Text(
                         text = buttonText,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }

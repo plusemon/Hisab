@@ -72,6 +72,7 @@ fun UpdateDialog(
         is UpdateUiState.UpToDate -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(20.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -95,7 +96,10 @@ fun UpdateDialog(
                     )
                 },
                 confirmButton = {
-                    Button(onClick = onDismiss) {
+                    Button(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         Text(if (isBangla) "ঠিক আছে" else "OK")
                     }
                 }
@@ -106,6 +110,7 @@ fun UpdateDialog(
             val info = updateUiState.updateInfo
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(20.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.SystemUpdate,
@@ -139,7 +144,7 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onDownloadAndInstall(info) },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
@@ -162,6 +167,7 @@ fun UpdateDialog(
             val info = updateUiState.updateInfo
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(20.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Security,
@@ -184,13 +190,19 @@ fun UpdateDialog(
                     )
                 },
                 confirmButton = {
-                    Button(onClick = onEnablePermission) {
+                    Button(
+                        onClick = onEnablePermission,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         Text(if (isBangla) "অনুমতি দিন" else "Enable Permission")
                     }
                 },
                 dismissButton = {
                     Row {
-                        OutlinedButton(onClick = { onRetryInstall(info) }) {
+                        OutlinedButton(
+                            onClick = { onRetryInstall(info) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
                             Text(if (isBangla) "পুনরায় চেষ্টা করুন" else "Retry")
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -206,6 +218,7 @@ fun UpdateDialog(
             val info = updateUiState.updateInfo
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(20.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.SystemUpdate,
@@ -230,7 +243,10 @@ fun UpdateDialog(
                     )
                 },
                 confirmButton = {
-                    Button(onClick = { onRetryInstall(info) }) {
+                    Button(
+                        onClick = { onRetryInstall(info) },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         Text(if (isBangla) "এখনই ইন্সটল করুন" else "Install Now")
                     }
                 },

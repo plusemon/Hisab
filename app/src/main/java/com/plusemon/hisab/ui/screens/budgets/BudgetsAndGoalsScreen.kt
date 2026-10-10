@@ -428,7 +428,7 @@ fun OverallBudgetCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -557,7 +557,7 @@ fun CategoryBudgetProgressItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -651,7 +651,7 @@ fun SavingsGoalItemCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -807,6 +807,7 @@ fun AddEditBudgetBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -819,14 +820,14 @@ fun AddEditBudgetBottomSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = Localization.getString(Localization.Key.MONTHLY_BUDGET, isBangla),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -835,7 +836,10 @@ fun AddEditBudgetBottomSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -846,7 +850,7 @@ fun AddEditBudgetBottomSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
@@ -910,8 +914,8 @@ fun AddEditBudgetBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 28.dp)
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp)
                 ) {
                     if (page == 0) {
                         // Page 0: "ক্যাটাগরি বাজেট" form (Dropdown for category selection + amount input)
@@ -1023,6 +1027,7 @@ fun AddEditBudgetBottomSheet(
                                     label = { Text("+$currencySymbol$amount", fontSize = 12.sp) }
                                 )
                             }
+                            Spacer(modifier = Modifier.width(16.dp))
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -1035,7 +1040,9 @@ fun AddEditBudgetBottomSheet(
                             OutlinedButton(
                                 onClick = onDismiss,
                                 shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp)
                             ) {
                                 Text(Localization.getString(Localization.Key.CANCEL, isBangla))
                             }
@@ -1049,11 +1056,19 @@ fun AddEditBudgetBottomSheet(
                                 },
                                 enabled = (limitText.toDoubleOrNull() ?: 0.0) > 0 && selectedCategoryId != null,
                                 shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    contentColor = Color.White
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
+                                    .height(52.dp)
                                     .testTag("save_budget_button")
                             ) {
-                                Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = Localization.getString(Localization.Key.SAVE, isBangla),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
                         }
                     } else {
@@ -1220,6 +1235,7 @@ fun AddSavingsGoalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -1227,8 +1243,8 @@ fun AddSavingsGoalBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
                 .navigationBarsPadding()
         ) {
             // Header
@@ -1240,7 +1256,7 @@ fun AddSavingsGoalBottomSheet(
                 Column {
                     Text(
                         text = Localization.getString(Localization.Key.SAVINGS_GOALS, isBangla),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -1249,7 +1265,10 @@ fun AddSavingsGoalBottomSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -1442,6 +1461,7 @@ fun AdjustGoalSavingsBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -1449,8 +1469,8 @@ fun AdjustGoalSavingsBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
                 .navigationBarsPadding()
         ) {
             Row(
@@ -1478,7 +1498,7 @@ fun AdjustGoalSavingsBottomSheet(
                         Text(
                             text = if (isDeposit) "${Localization.getString(Localization.Key.DEPOSIT, isBangla)} (${goal.name})"
                             else "${Localization.getString(Localization.Key.WITHDRAW, isBangla)} (${goal.name})",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -1488,7 +1508,10 @@ fun AdjustGoalSavingsBottomSheet(
                         )
                     }
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -105,8 +107,10 @@ fun MonthYearPickerBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
-                .padding(bottom = 28.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
             // Header: Title and Close button
             Row(
@@ -133,7 +137,7 @@ fun MonthYearPickerBottomSheet(
                     Column {
                         Text(
                             text = Localization.getString(Localization.Key.SELECT_MONTH, isBangla),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold,
                             color = titleTextColor
                         )
@@ -147,7 +151,9 @@ fun MonthYearPickerBottomSheet(
 
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.testTag("month_picker_close_btn")
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("month_picker_close_btn")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,

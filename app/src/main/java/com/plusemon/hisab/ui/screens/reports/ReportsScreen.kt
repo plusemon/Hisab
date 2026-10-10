@@ -588,7 +588,7 @@ fun CategoryDrilldownDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {

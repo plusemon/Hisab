@@ -61,7 +61,7 @@ fun DeleteConfirmationDialog(
                 .fillMaxWidth()
                 .padding(8.dp)
                 .testTag("delete_confirmation_dialog"),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)

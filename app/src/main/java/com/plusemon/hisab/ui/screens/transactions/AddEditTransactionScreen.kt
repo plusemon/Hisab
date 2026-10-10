@@ -574,7 +574,7 @@ private fun TransactionFormFields(
         // Big Amount Input Card (Flat card with border)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -840,7 +840,7 @@ private fun TransactionFormFields(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Note field
         OutlinedTextField(
@@ -854,7 +854,7 @@ private fun TransactionFormFields(
                 .testTag("tx_note_input")
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Receipt Photo Attachment
         Row(
@@ -914,15 +914,17 @@ private fun TransactionFormFields(
                     TransactionType.EXPENSE -> ExpenseRed
                     TransactionType.INCOME -> IncomeGreen
                     TransactionType.TRANSFER -> TransferBlue
-                }
+                },
+                contentColor = Color.White
             )
         ) {
-            Icon(Icons.Default.Check, contentDescription = null)
+            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = Localization.getString(Localization.Key.SAVE, isBn),
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
         }
 
@@ -941,7 +943,7 @@ fun AccountSelectorChips(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 2.dp)
+        contentPadding = PaddingValues(start = 2.dp, end = 16.dp)
     ) {
         items(accounts, key = { it.id }) { acc ->
             val isSelected = acc.id == selectedId

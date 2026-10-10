@@ -99,7 +99,7 @@ fun DashboardBalanceCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag("dashboard_balance_hero_card"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF161F30) else MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

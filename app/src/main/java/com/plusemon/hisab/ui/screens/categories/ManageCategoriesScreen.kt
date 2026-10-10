@@ -386,6 +386,7 @@ private fun CategoryEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
         title = {
             Text(
                 text = if (isEditing) {
@@ -407,6 +408,7 @@ private fun CategoryEditDialog(
                     onValueChange = { nameEn = it },
                     label = { Text(if (isBangla) "ইংরেজি নাম (যেমন: Groceries)" else "English Name") },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("category_name_en_input")
@@ -418,6 +420,7 @@ private fun CategoryEditDialog(
                     onValueChange = { nameBn = it },
                     label = { Text(if (isBangla) "বাংলা নাম (যেমন: কাঁচাবাজার)" else "Bangla Name") },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("category_name_bn_input")
@@ -432,7 +435,7 @@ private fun CategoryEditDialog(
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                    contentPadding = PaddingValues(start = 0.dp, top = 4.dp, end = 16.dp, bottom = 4.dp)
                 ) {
                     items(colorsList) { hex ->
                         val isSelected = selectedColor.equals(hex, ignoreCase = true)
@@ -470,7 +473,7 @@ private fun CategoryEditDialog(
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                    contentPadding = PaddingValues(start = 0.dp, top = 4.dp, end = 16.dp, bottom = 4.dp)
                 ) {
                     items(iconsList) { iconKey ->
                         val isSelected = selectedIcon.equals(iconKey, ignoreCase = true)
@@ -511,6 +514,7 @@ private fun CategoryEditDialog(
                     }
                 },
                 enabled = nameEn.isNotBlank() || nameBn.isNotBlank(),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.testTag("save_category_button")
             ) {
                 Text(if (isBangla) "সংরক্ষণ" else "Save")

@@ -846,7 +846,7 @@ fun EditContactPhoneDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -2368,22 +2368,27 @@ fun AddLoanEntryBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+        ) {
             // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = if (isBangla) "ধার / দেনার হিসাব" else "Record Loan / Debt",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -2392,7 +2397,10 @@ fun AddLoanEntryBottomSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -2402,7 +2410,7 @@ fun AddLoanEntryBottomSheet(
             // Swipeable Tab Indicator (Gave Money vs Took Money)
             Surface(
                 modifier = Modifier
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 16.dp)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -2683,7 +2691,9 @@ fun AddLoanEntryBottomSheet(
                         OutlinedButton(
                             onClick = onDismiss,
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp)
                         ) {
                             Text(Localization.getString(Localization.Key.CANCEL, isBangla))
                         }
@@ -2699,9 +2709,13 @@ fun AddLoanEntryBottomSheet(
                             },
                             enabled = name.isNotBlank() && (amountText.toDoubleOrNull() ?: 0.0) > 0,
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                contentColor = Color.White
+                            ),
                             modifier = Modifier
                                 .weight(1f)
+                                .height(52.dp)
                                 .testTag("save_debt_button")
                         ) {
                             Text(
@@ -2709,7 +2723,8 @@ fun AddLoanEntryBottomSheet(
                                     (if (isBangla) "টাকা দেওয়া সেভ করুন" else "Save Lent Entry")
                                 else
                                     (if (isBangla) "টাকা নেওয়া সেভ করুন" else "Save Borrowed Entry"),
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                         }
                     }
@@ -2759,6 +2774,7 @@ fun RecordPaymentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -2766,19 +2782,21 @@ fun RecordPaymentBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = Localization.getString(Localization.Key.RECORD_PAYMENT, isBangla),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -2787,7 +2805,10 @@ fun RecordPaymentBottomSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -2859,7 +2880,9 @@ fun RecordPaymentBottomSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
                     Text(Localization.getString(Localization.Key.CANCEL, isBangla))
                 }
@@ -2873,10 +2896,19 @@ fun RecordPaymentBottomSheet(
                     },
                     enabled = (amountText.toDoubleOrNull() ?: 0.0) > 0,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen),
-                    modifier = Modifier.weight(1f)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = IncomeGreen,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
-                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = Localization.getString(Localization.Key.SAVE, isBangla),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -3043,6 +3075,7 @@ fun AddShopCreditBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = Color(0xFF101726),
         modifier = Modifier.imePadding()
     ) {
@@ -3050,10 +3083,10 @@ fun AddShopCreditBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(bottom = 28.dp)
+                .padding(bottom = 16.dp)
         ) {
             // Header: Store Icon + Title & Subtitle + Explicit Close Icon (✕)
             Row(
@@ -3083,7 +3116,7 @@ fun AddShopCreditBottomSheet(
                     Column {
                         Text(
                             text = if (isBangla) "দোকান বাকি রেকর্ড করুন" else "Add Shop Credit",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -3095,7 +3128,9 @@ fun AddShopCreditBottomSheet(
                 }
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.testTag("shop_credit_close_button")
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("shop_credit_close_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -3450,7 +3485,7 @@ fun AddShopCreditBottomSheet(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp)
+                        .height(52.dp)
                         .testTag("shop_credit_cancel_btn")
                 ) {
                     Text(
@@ -3481,18 +3516,19 @@ fun AddShopCreditBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        contentColor = Color.White,
                         disabledContainerColor = Color(0xFF1E293B),
                         disabledContentColor = Color(0xFF94A3B8)
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp)
+                        .height(52.dp)
                         .testTag("shop_credit_save_btn")
                 ) {
                     Text(
                         text = Localization.getString(Localization.Key.SAVE, isBangla),
                         fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         fontSize = 15.sp
                     )
                 }
@@ -3609,6 +3645,7 @@ fun AddNewVendorBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -3616,12 +3653,14 @@ fun AddNewVendorBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3644,7 +3683,7 @@ fun AddNewVendorBottomSheet(
                     Column {
                         Text(
                             text = if (isBangla) "নতুন শপ যুক্ত করুন" else "Add New Shop",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -3654,7 +3693,10 @@ fun AddNewVendorBottomSheet(
                         )
                     }
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -3773,7 +3815,9 @@ fun AddNewVendorBottomSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
                     Text(Localization.getString(Localization.Key.CANCEL, isBangla))
                 }
@@ -3786,9 +3830,19 @@ fun AddNewVendorBottomSheet(
                     },
                     enabled = name.isNotBlank(),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
-                    Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = Localization.getString(Localization.Key.SAVE, isBangla),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -3881,7 +3935,7 @@ fun EditVendorPhoneDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -3984,6 +4038,7 @@ fun SettleShopCreditBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.imePadding()
     ) {
@@ -3991,12 +4046,14 @@ fun SettleShopCreditBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -4019,7 +4076,7 @@ fun SettleShopCreditBottomSheet(
                     Column {
                         Text(
                             text = if (isBangla) "দোকানের বাকি পরিশোধ" else "Settle Shop Credit",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -4029,7 +4086,10 @@ fun SettleShopCreditBottomSheet(
                         )
                     }
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -4099,7 +4159,9 @@ fun SettleShopCreditBottomSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
                     Text(Localization.getString(Localization.Key.CANCEL, isBangla))
                 }
@@ -4113,10 +4175,19 @@ fun SettleShopCreditBottomSheet(
                     },
                     enabled = (amountText.toDoubleOrNull() ?: 0.0) > 0,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen),
-                    modifier = Modifier.weight(1f)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = IncomeGreen,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
                 ) {
-                    Text(if (isBangla) "পরিশোধ নিশ্চিত করুন" else "Confirm Settle", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isBangla) "পরিশোধ নিশ্চিত করুন" else "Confirm Settle",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }

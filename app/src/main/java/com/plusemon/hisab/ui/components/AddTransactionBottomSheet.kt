@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -66,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -232,19 +234,20 @@ fun AddTransactionBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .imePadding()
+                .navigationBarsPadding()
         ) {
             // Header with title and close button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = if (isBn) "নতুন লেনদেন" else "New Transaction",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -257,7 +260,9 @@ fun AddTransactionBottomSheet(
 
                 IconButton(
                     onClick = { closeSheet() },
-                    modifier = Modifier.testTag("close_sheet_btn")
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("close_sheet_btn")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -390,7 +395,7 @@ fun AddTransactionBottomSheet(
                     // Big Amount Input Card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -727,19 +732,21 @@ fun AddTransactionBottomSheet(
                                 TransactionType.EXPENSE -> ExpenseRed
                                 TransactionType.INCOME -> IncomeGreen
                                 TransactionType.TRANSFER -> TransferBlue
-                            }
+                            },
+                            contentColor = Color.White
                         )
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = Localization.getString(Localization.Key.SAVE, isBn),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(36.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }

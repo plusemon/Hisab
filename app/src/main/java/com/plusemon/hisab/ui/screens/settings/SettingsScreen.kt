@@ -412,7 +412,7 @@ fun SetPinDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)

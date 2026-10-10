@@ -1,5 +1,6 @@
 package com.plusemon.hisab.ui.screens.recurring
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -313,7 +314,8 @@ fun AddRecurringRuleDialog(
         Card(
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
@@ -393,9 +395,9 @@ fun AddRecurringRuleDialog(
                                 onSave(selectedAccountId, selectedCategoryId, amt, selectedType, selectedFreq, note)
                             }
                         },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Localization.getString(Localization.Key.SAVE, isBangla))
+                        Text(Localization.getString(Localization.Key.SAVE, isBangla), fontWeight = FontWeight.Bold)
                     }
                 }
             }

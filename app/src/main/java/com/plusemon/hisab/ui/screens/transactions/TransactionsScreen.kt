@@ -232,7 +232,7 @@ fun TransactionsScreen(
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -246,7 +246,7 @@ fun TransactionsScreen(
                 // Filter Trigger Button with active Badge
                 Surface(
                     onClick = { showFilterSheet = true },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = if (hasActiveFilters) {
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
